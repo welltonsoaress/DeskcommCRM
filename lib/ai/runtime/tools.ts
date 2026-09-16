@@ -95,6 +95,15 @@ function wrapMcpTool(
         });
       }
       try {
+        if (input.ctx.delegatedUserId) {
+          const current = await input.supabase.from("user_organizations").select("id")
+            .eq("organization_id", input.ctx.organizationId)
+            .eq("user_id", input.ctx.delegatedUserId)
+            .in("role", ["manager", "admin"]).is("revoked_at", null)
+            .not("accepted_at", "is", null).maybeSingle();
+          if (current.error || !current.data)
+            throw new Error("delegated_manager_access_changed");
+        }
         ensureScope(input.auth.scopes, def.requiresScope);
         ensureRole(input.auth.role, def.requiresRole);
 

@@ -25,6 +25,7 @@ import { parseMetaWebhook, verificationChallenge, verifyMetaSignature } from "@/
 import { ingestMetaInbound } from "@/lib/channels/meta/ingest";
 import { metaSessionByWebhookToken } from "@/lib/channels/meta/session";
 import { logger } from "@/lib/logger";
+import { recordManagementReceipt } from "@/lib/management/receipts";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -142,6 +143,12 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
         .eq("name", e.templateName)
         .eq("language", e.templateLanguage);
     } else {
+      await recordManagementReceipt(admin, {
+        organizationId: session.organizationId, channelSessionId: session.id,
+        externalIds: [e.externalId],
+        status: e.status === "read" ? "read" : e.status === "delivered" ? "delivered"
+          : e.status === "failed" ? "failed" : "sent",
+      });
       await admin
         .from("messages")
         .update({ status: e.status === "failed" ? "failed" : "sent", updated_at: now })

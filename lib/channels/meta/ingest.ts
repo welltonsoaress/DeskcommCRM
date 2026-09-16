@@ -26,7 +26,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { ARCHIVED_AT, queryTolerantToMissingArchived } from "../archived";
 import { aplicarEfeitosPosEntrada } from "../pos-entrada";
 import { encontrarContatoPorTelefone } from "../contato-por-telefone";
-import { canonicalPhoneBR, phoneLookupVariants } from "../phone-variants";
+import { canonicalPhoneBR } from "../phone-variants";
+import { interceptManagementMessage } from "@/lib/management/ingress";
 import type { ChannelTenantScope } from "../types";
 import type { InboundMessageEvent } from "./webhook";
 
@@ -35,6 +36,7 @@ type Admin = SupabaseClient;
 export type IngestOutcome =
   | { status: "ingested"; messageId: string; conversationId: string }
   | { status: "duplicate" }
+  | { status: "management" }
   | { status: "no_session" }
   | { status: "failed"; reason: string };
 
@@ -134,6 +136,12 @@ export async function ingestMetaInbound(
   if (!sessao) return { status: "no_session" };
 
   const orgId = sessao.organization_id;
+
+  if (await interceptManagementMessage(admin as never, {
+    organizationId: orgId, channelSessionId: sessao.id,
+    phone: e.from, externalId: e.externalId, body: e.text,
+    direction: "inbound", authenticated: true,
+  })) return { status: "management" };
 
   const existente = await findContactByVariants(admin, orgId, e.from);
   // Celular BR grava COM o nono. A busca acima já reencontra a grafia sem o 9;

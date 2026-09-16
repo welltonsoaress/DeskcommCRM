@@ -49,13 +49,15 @@ export async function auditMcpToolCall(input: AuditMcpToolCallInput): Promise<vo
     actor_type: ctx.actor.type,
     actor_id: ctx.actor.id,
     tool_name: toolName,
-    args: redactArgs(args),
+    // A pergunta do gestor pode conter dados de clientes. O evento delegado
+    // guarda a ação e o desfecho, sem copiar os argumentos/resposta no log.
+    args: ctx.delegatedUserId ? { delegated: true } : redactArgs(args),
     duration_ms: durationMs,
     success,
   };
 
-  if (resultSummary) metadata.result_summary = resultSummary.slice(0, 280);
-  if (errorMessage) metadata.error = errorMessage.slice(0, 500);
+  if (resultSummary && !ctx.delegatedUserId) metadata.result_summary = resultSummary.slice(0, 280);
+  if (errorMessage) metadata.error = ctx.delegatedUserId ? "delegated_tool_failed" : errorMessage.slice(0, 500);
   if (ctx.actor.type === "ai_agent" && ctx.actor.api_token_id) {
     metadata.actor_api_token_id = ctx.actor.api_token_id;
   }
@@ -66,8 +68,8 @@ export async function auditMcpToolCall(input: AuditMcpToolCallInput): Promise<vo
     // comum, ctx.actor.id é o id do próprio token (lib/mcp/auth.ts), e mandá-lo
     // como actorUserId estourava a FK api_audit_log_actor_user_id_fkey. O ator
     // já fica registrado em actorApiTokenId e em metadata.actor_id.
-    actorUserId: null,
-    actorApiTokenId: ctx.apiTokenId,
+    actorUserId: ctx.delegatedUserId ?? null,
+    actorApiTokenId: ctx.delegatedUserId ? null : ctx.apiTokenId,
     organizationId: ctx.organizationId,
     resourceType: "mcp_tool",
     // `resource_id` é uuid no banco; o nome da tool ia aqui como texto e o

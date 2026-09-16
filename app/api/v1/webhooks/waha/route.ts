@@ -175,9 +175,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    await dispatchWahaEvent(admin, session, contrato.envelope, requestId);
+    await dispatchWahaEvent(admin, session, contrato.envelope, requestId, validSignature);
   } catch (err) {
-    console.error("[waha.webhook] handler failed", err);
+    logger.error("[waha.webhook] ingestão falhou", {
+      request_id: requestId, organization_id: session.organization_id,
+      cause: err instanceof Error ? err.name : "unknown",
+    });
+    return fail("internal_error", "Falha ao processar evento do canal.", 500, { requestId });
   }
 
   return ok({ accepted: true }, { requestId });

@@ -54,6 +54,9 @@ vi.mock("@/lib/channels/zernio/ingest", () => ({
   aplicarEdicaoZernio: async () => "aplicada",
 }));
 
+vi.mock("@/lib/management/ingress", () => ({ interceptManagementMessage: async () => false }));
+vi.mock("@/lib/management/receipts", () => ({ recordManagementReceipt: async () => {} }));
+
 import { lerEnvelopeZernio } from "@/lib/channels/zernio/envelope";
 import { parseZernioInbound } from "@/lib/channels/zernio/webhook";
 import { POST } from "@/app/api/v1/webhooks/channel/[token]/route";

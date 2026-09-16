@@ -56,6 +56,9 @@ function chain(tabela: string, op: string, payload?: unknown): Record<string, un
           if (tabela === "contacts" && op === "select") {
             return async () => ({ data: null, error: null });
           }
+          if (tabela === "management_bindings" && op === "select") {
+            return async () => ({ data: null, error: null });
+          }
           return async () =>
             insertErro ? { data: null, error: insertErro } : { data: { id: "msg-1" }, error: null };
         }

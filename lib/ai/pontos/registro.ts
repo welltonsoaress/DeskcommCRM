@@ -184,6 +184,16 @@ export const PONTOS_DE_IA: readonly PontoDeIa[] = [
     registraEm: "llm_calls",
   },
   {
+    id: "management_consultation",
+    rotulo: "Responder perguntas do gestor",
+    oQueFaz: "Consulta as informações da organização para responder ao gestor pelo WhatsApp comercial.",
+    papel: "atender",
+    exige: { tools: true },
+    emissor: "lib/management/consultation.ts",
+    sintomaDeFalha: "O gestor recebe um resumo limitado e a falha fica registrada para acompanhamento.",
+    registraEm: "llm_calls",
+  },
+  {
     id: "operator_turn",
     rotulo: "Trabalhar o funil",
     oQueFaz:
