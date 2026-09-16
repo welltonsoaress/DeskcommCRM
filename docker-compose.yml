@@ -1,20 +1,13 @@
-# Stack local de dependências externas para o DeskcommCRM.
+# Stack local de dependências do DeskcommCRM.
 #
-# Sobe apenas o WAHA (Plus / NOWEB) pra desenvolvimento. Postgres + Auth + Storage
-# vêm do Supabase Cloud (ou supabase local CLI separadamente, conforme o time preferir).
+# A aplicação Next roda no host; Compose sobe WAHA, worker, scheduler e Redis REST.
+# Postgres, Auth e Storage vêm do Supabase Cloud.
 #
-# Uso:
-#   1. Copie .env.example -> .env.local e preencha WAHA_API_KEY (plaintext)
-#   2. Gere o hash: echo -n "$WAHA_API_KEY" | shasum -a 512 | awk '{print $1}'
-#   3. Cole esse hash em WAHA_API_KEY abaixo (NÃO o plaintext)
-#   4. docker compose up -d
-#   5. Acesse http://localhost:3030/dashboard/ (UI do WAHA Plus)
-#      (host port 3030 — :3000 fica reservado pra outros dev tools como Remotion)
+# Uso: docker compose --env-file .env.local up -d --build
+# App: http://localhost:3000 | WAHA: http://localhost:3030/dashboard/
+# Redis REST fica publicado apenas em 127.0.0.1:8079.
 #
-# Em prod, WAHA roda em VPS dedicada (Hostgator) atrás de Nginx (proxy_buffering off
-# pra SSE). docker-compose aqui é DEV ONLY.
-
-version: "3.9"
+# Em produção, use docker-compose.prod.yml; este arquivo é DEV ONLY.
 
 services:
   waha:
@@ -26,7 +19,7 @@ services:
       - "3030:3000"
     environment:
       # Hash SHA512 hex da api key (NÃO plaintext). Cliente envia plaintext em X-Api-Key.
-      WAHA_API_KEY: ${WAHA_API_KEY_SHA512}
+      WAHA_API_KEY: sha512:${WAHA_API_KEY_SHA512}
       # Webhook base URL — precisa ser pública (use ngrok/cloudflared em dev).
       # host.docker.internal: o app Next roda no HOST em dev — localhost dentro do
       # container seria o próprio WAHA e o webhook nunca chegaria. Porta 3002:
@@ -68,12 +61,19 @@ services:
     container_name: deskcomm-agent-worker
     restart: unless-stopped
     env_file:
-      - .env
-      - .env.local
+      - path: .env
+        required: false
+      - path: .env.local
     environment:
       # dentro do container, localhost é o próprio worker — o WAHA está na rede
       # do compose (serviço waha, porta interna 3000). Sobrepõe o .env.local.
       WAHA_API_BASE_URL: http://waha:3000
+      # O worker usa o gateway REST interno; o Next no host usa localhost:8079.
+      UPSTASH_REDIS_REST_URL: http://srh
+      UPSTASH_REDIS_REST_TOKEN: ${SRH_TOKEN}
+    depends_on:
+      srh:
+        condition: service_started
     ports:
       - "8787:8787"
     healthcheck:
@@ -83,6 +83,43 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+
+  redis:
+    image: redis:7-alpine
+    container_name: deskcomm-redis
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  srh:
+    image: hiett/serverless-redis-http@sha256:5b0bb9239fce53abf87b2018a7a0deb9ec7bd900c5360738fe5fbeeb426f9150
+    container_name: deskcomm-redis-rest
+    restart: unless-stopped
+    environment:
+      SRH_MODE: env
+      SRH_TOKEN: ${SRH_TOKEN}
+      SRH_CONNECTION_STRING: redis://redis:6379
+    ports:
+      - "127.0.0.1:8079:80"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.scheduler
+    container_name: deskcomm-scheduler
+    restart: unless-stopped
+    environment:
+      TZ: UTC
+      INTERNAL_SECRET: ${INTERNAL_SECRET}
+    extra_hosts:
+      - "app:host-gateway"
 
 volumes:
   waha-data:
