@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": { "title": "Assistente de gestão no WhatsApp", "subtitle": "Gestor verificado por empresa e envio pelo comercial", "output": "assistente-gestao-whatsapp.html", "quality_profile": "standard" },
+  "lanes": [
+    { "id": "pessoas", "label": "Empresa e operador" },
+    { "id": "app", "label": "Aplicação e canais" },
+    { "id": "db", "label": "Banco e histórico" }
+  ],
+  "mainPath": ["config", "binding", "webhook", "ingress", "messages", "consult", "outbox", "delivery", "gestor"],
+  "nodes": [
+    { "id": "config", "lane": "pessoas", "col": 0, "type": "ui", "label": "Configuração do gestor" },
+    { "id": "binding", "lane": "db", "col": 1, "type": "database", "label": "management_bindings / sessão e usuário da empresa" },
+    { "id": "webhook", "lane": "app", "col": 1, "type": "route", "label": "Webhook autenticado do comercial" },
+    { "id": "ingress", "lane": "app", "col": 2, "type": "lib", "label": "Classificação antes do funil" },
+    { "id": "messages", "lane": "db", "col": 3, "type": "database", "label": "management_messages / deduplicação" },
+    { "id": "consult", "lane": "app", "col": 4, "type": "service", "label": "MCP de leitura e modelo com orçamento" },
+    { "id": "schedule", "lane": "app", "col": 4, "type": "service", "label": "Resumo local e alertas selecionados" },
+    { "id": "outbox", "lane": "db", "col": 5, "type": "database", "label": "management_outbox / desfecho durável" },
+    { "id": "delivery", "lane": "app", "col": 5, "type": "service", "label": "Releitura e adaptador do comercial" },
+    { "id": "gestor", "lane": "pessoas", "col": 5, "type": "ui", "label": "WhatsApp do gestor" },
+    { "id": "central", "lane": "pessoas", "col": 5, "type": "ui", "label": "Central e histórico de falhas" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "config", "to": "binding", "label": "admin registra e confirma" },
+    { "id": "e2", "from": "binding", "to": "config", "label": "estado e recibos visíveis" },
+    { "id": "e3", "from": "gestor", "to": "webhook", "label": "pergunta ou código" },
+    { "id": "e4", "from": "webhook", "to": "ingress", "label": "org e sessão confiáveis" },
+    { "id": "e5", "from": "binding", "to": "ingress", "label": "número e usuário" },
+    { "id": "e6", "from": "ingress", "to": "messages", "label": "sem contaminar cliente" },
+    { "id": "e7", "from": "messages", "to": "consult", "label": "pergunta pendente" },
+    { "id": "e8", "from": "binding", "to": "schedule", "label": "consentimento e horário" },
+    { "id": "e9", "from": "schedule", "to": "outbox", "label": "resumo e avisos" },
+    { "id": "e10", "from": "consult", "to": "outbox", "label": "resposta com chave única" },
+    { "id": "e11", "from": "outbox", "to": "delivery", "label": "claim com lease" },
+    { "id": "e12", "from": "binding", "to": "delivery", "label": "revalidação antes do envio" },
+    { "id": "e13", "from": "delivery", "to": "gestor", "label": "mensagem pelo comercial" },
+    { "id": "e14", "from": "webhook", "to": "outbox", "label": "recibo assinado" },
+    { "id": "e15", "from": "outbox", "to": "central", "label": "falha ou incerteza" },
+    { "id": "e16", "from": "central", "to": "config", "label": "revisão e tentativa segura" },
+    { "id": "e17", "from": "delivery", "to": "outbox", "label": "estado aceito ou incerto" }
+  ]
+}

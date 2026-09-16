@@ -482,6 +482,12 @@ export const AUDIT_ACTIONS = [
   "crm_task.deleted",
   "organization.switched",
 
+  // Assistente de gestão: autoria do vínculo e da prova enviada pelo comercial.
+  "management.binding_updated",
+  "management.verification_requested",
+  "management.verification_completed",
+  "management.delivery_retry_requested",
+
   // Chamada de voz WhatsApp (spec 18, migration 0234). Ligá-la vincula um
   // SEGUNDO aparelho ao número que já atende, por um caminho que não é o
   // oficial — o risco é a conta ser bloqueada. Estas duas linhas são a resposta

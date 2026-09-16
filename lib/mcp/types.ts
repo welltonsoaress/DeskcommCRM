@@ -13,6 +13,8 @@ import type { Actor } from "@/lib/api/handlers/types";
 import type { Role } from "@/lib/auth/types";
 
 export interface McpContext {
+  /** Turno delegado a um gestor verificado no WhatsApp, sem bearer API token. */
+  delegatedUserId?: string;
   /** Somente o runtime in-process fornece o job original, nunca o cliente MCP. */
   meetingBooking?: MeetingBookingContext;
   organizationId: string;

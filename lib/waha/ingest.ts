@@ -24,6 +24,8 @@ import { ackToStatus } from "@/lib/types/messaging";
 import type { WahaEnvelope, WahaPayload } from "@/lib/waha/envelope";
 import { bareWaMessageId, chatIdFromWaMessageId } from "@/lib/waha/message-id";
 import { logger } from "@/lib/logger";
+import { interceptManagementMessage } from "@/lib/management/ingress";
+import { recordManagementReceipt } from "@/lib/management/receipts";
 
 export type Admin = ReturnType<typeof createAdminClient>;
 
@@ -944,6 +946,10 @@ async function handleAck(admin: Admin, session: Session, p: WahaPayload): Promis
   // inbound (que é full e sustenta o dedup 23505).
   const bare = bareWaMessageId(p.id);
   const candidates = bare === p.id ? [p.id] : [p.id, bare];
+  if (ack >= 2) await recordManagementReceipt(admin, {
+    organizationId: session.organization_id, channelSessionId: session.id,
+    externalIds: candidates, status: ack >= 3 ? "read" : "delivered",
+  });
   await admin
     .from("messages")
     .update(update)
@@ -1067,11 +1073,24 @@ export async function dispatchWahaEvent(
   session: SessionStatusRow,
   envelope: WahaEnvelope,
   requestId: string,
+  signatureVerified?: boolean,
 ): Promise<void> {
   const eventType = envelope.event ?? "unknown";
   const payload: WahaPayload = envelope.payload ?? {};
 
   if (eventType === "message" || eventType === "message.any") {
+    if (signatureVerified !== undefined && payload.id) {
+      const chat = payload.fromMe
+        ? (payload.to ?? chatIdFromWaMessageId(payload.id) ?? payload.from ?? "")
+        : (payload.from ?? "");
+      const parsed = parseChatId(chat);
+      const phone = parsed.phone ?? (parsed.kind === "lid" ? telefoneAlternativoDe(payload) : null);
+      if (await interceptManagementMessage(admin, {
+        organizationId: session.organization_id, channelSessionId: session.id,
+        phone, externalId: payload.id, body: payload.body ?? null,
+        direction: payload.fromMe ? "outbound" : "inbound", authenticated: signatureVerified,
+      })) return;
+    }
     if (payload.fromMe) {
       await handleOutboundFromUserPhone(admin, session, payload, requestId);
     } else {

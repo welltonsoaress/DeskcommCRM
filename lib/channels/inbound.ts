@@ -27,6 +27,9 @@ import {
   saudeDoEvento,
 } from "./zernio/avisos";
 import { aplicarEdicaoZernio, ingestZernioInbound } from "./zernio/ingest";
+import { interceptManagementMessage } from "@/lib/management/ingress";
+import { recordManagementReceipt } from "@/lib/management/receipts";
+import { parseZernioInbound } from "./zernio/webhook";
 import { lerEnvelopeZernio } from "./zernio/envelope";
 import { parseZernioEdicao, verifyZernioSignature } from "./zernio/webhook";
 import type { ChannelProvider } from "./types";
@@ -187,6 +190,21 @@ async function zernioInbound(
     const desfecho = await aplicarEdicaoZernio(admin, input.session.organization_id, edicao);
     return { ok: true, body: { status: "edicao", tipo: edicao.tipo, desfecho } };
   }
+
+  const management = parseZernioInbound(payload);
+  if (management?.kind === "status" && management.direction === "outbound") {
+    await recordManagementReceipt(admin as never, {
+      organizationId: input.session.organization_id, channelSessionId: input.session.id,
+      externalIds: [management.externalId], status: management.status ?? "sent",
+    });
+  }
+  if (management?.kind === "message" && await interceptManagementMessage(admin as never, {
+    organizationId: input.session.organization_id,
+    channelSessionId: input.session.id,
+    phone: management.identity.phone,
+    externalId: management.externalId, body: management.text,
+    direction: management.direction, authenticated: true,
+  })) return { ok: true, body: { status: "management" } };
 
   const r = await ingestZernioInbound(admin, {
     organizationId: input.session.organization_id,
