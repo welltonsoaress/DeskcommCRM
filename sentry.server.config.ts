@@ -3,7 +3,7 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
-import { resolveSentryDsn, isCommunityDsn, DEFAULT_SENTRY_DSN } from "./lib/sentry/dsn";
+import { resolveSentryDsn, isCommunityDsn } from "./lib/sentry/dsn";
 import { sentryScrubHooks } from "./lib/sentry/scrub";
 
 const sentryDsn = resolveSentryDsn(process.env.SENTRY_DSN);
@@ -23,13 +23,7 @@ Sentry.init({
 // Transparência de telemetria: uma linha no boot dizendo o que está ativo e como
 // desligar. Evita "telemetria silenciosa" num projeto open source self-host.
 if (!sentryDsn) {
-  console.info("[telemetria] Desligada (SENTRY_DSN=off) — nenhum erro é enviado.");
-} else if (sentryDsn === DEFAULT_SENTRY_DSN) {
-  console.info(
-    "[telemetria] Relatórios de erro anonimizados ATIVOS (Sentry da comunidade). " +
-      "Sem rastreamento de performance nem replay de sessão. " +
-      "Desligue com SENTRY_DSN=off, ou envie pro seu com SENTRY_DSN=<seu-dsn>.",
-  );
+  console.info("[telemetria] Desligada — nenhum erro é enviado.");
 } else {
   console.info("[telemetria] Erros sendo enviados ao Sentry configurado em SENTRY_DSN.");
 }

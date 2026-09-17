@@ -79,6 +79,45 @@ commit → push → PR → merge na main → CI publica imagem → VPS puxa
 > `stable`; quem opera um cliente usa o número da versão. Ver
 > [`../doctrine/packaging.md`](../doctrine/packaging.md).
 
+### Primeiro teste do fork `welltonsoaress/DeskcommCRM`
+
+Este fork é a fonte das imagens para **novas** instalações. A pasta local e a
+branch `main` no GitHub são etapas diferentes: salvar no computador não publica
+nada; fazer `git push origin main` envia o código, e o workflow
+`publish-image.yml` monta as três imagens no GHCR. A VPS baixa as imagens
+publicadas; ela não recebe automaticamente cada edição local.
+
+1. Na pasta oficial `DeskcommCRM`, revise o diff, rode os testes e faça commit
+   das alterações desejadas. Envie para `origin/main` pelo fluxo de revisão e
+   proteção que configurar neste repositório. Não use o remoto `upstream` para
+   publicar este fork.
+2. No GitHub de `welltonsoaress/DeskcommCRM`, confira o workflow
+   **Publicar imagem Docker (GHCR)** da `main`. Ele deve concluir os builds de
+   `deskcommcrm`, `deskcomm-worker`, `deskcomm-scheduler` e o check `imagens-ok`.
+   A `main` publica `:latest`; ela **não** publica `:stable` sem tag de release.
+3. Torne **públicos os três packages** em Package settings e confirme que os
+   três `:latest` podem ser baixados anonimamente. Um repositório público não
+   torna automaticamente públicos seus packages. Antes disso, não rode o
+   instalador na VPS: ele pode cair no build local de emergência.
+4. Na VPS de testes, clone **este** repositório e siga
+   [`../deploy-selfhost/README.md`](../deploy-selfhost/README.md) ou o
+   `hostgator-setup-kit/README.md`. Para a primeira instalação sem tag no
+   `origin`, use a entrevista interativa do `install.sh`: quando o trio
+   `:latest` estiver público, o kit avisa que usará esse canal. **Não use
+   `--yes` copiando `.env.hostgator.example` enquanto `:stable` não existir**;
+   o template contém `:stable` como padrão para releases normais.
+5. Para uma versão fixa de operação, configure o GitHub App e os secrets
+   `RELEASE_APP_ID`/`RELEASE_APP_PRIVATE_KEY` exigidos por `release.yml`,
+   execute o fluxo de release e confirme que a tag `vX.Y.Z` publicou as três
+   imagens `:X.Y.Z` e promoveu `:stable`. Só depois use `update.sh` na VPS;
+   ele atualiza o código, o banco e as três imagens juntos. Sem esses secrets,
+   o workflow de release deste fork não está pronto para gerar tags sozinho.
+
+O `origin` deste fork não tinha tags `v*` na verificação de 2026-09-17. Tags
+locais herdadas do clone original **não são releases deste fork** e não devem
+ser empurradas em lote. A mudança do namespace também não altera o `.env` de
+uma VPS já instalada: isso pede migração deliberada, com backup.
+
 ---
 
 ## 4. Exceção: imagem construída na VPS

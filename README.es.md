@@ -16,7 +16,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript)](https://www.typescriptlang.org)
 [![Supabase](https://img.shields.io/badge/Supabase-Postgres%2BAuth%2BStorage-3ecf8e?logo=supabase)](https://supabase.com)
 [![Self-hosted](https://img.shields.io/badge/self--hosted-1%20comando-orange)](hostgator-setup-kit/)
-[![CI](https://github.com/melgarafael/DeskcommCRM/actions/workflows/ci.yml/badge.svg)](https://github.com/melgarafael/DeskcommCRM/actions/workflows/ci.yml)
+[![CI](https://github.com/welltonsoaress/DeskcommCRM/actions/workflows/ci.yml/badge.svg)](https://github.com/welltonsoaress/DeskcommCRM/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 [**⚡ Instalar**](#-instalar-en-tu-vps-el-camino-principal) · [**🔄 Actualizar**](#-actualizar) · [**🧭 Visión**](VISION.md) · [**🏗️ Arquitectura**](ARCHITECTURE.md) · [**🤝 Contribuir**](CONTRIBUTING.md) · [**🗺️ Roadmap**](#%EF%B8%8F-roadmap)
@@ -27,19 +27,18 @@
 
 > ### ☁️ Corre este CRM en producción con 1 comando
 >
-> DeskcommCRM se desarrolla en **alianza con HostGator**: el [`hostgator-setup-kit/`](hostgator-setup-kit/)
+> El proyecto original documenta una alianza con HostGator; este fork no la asume. El [`hostgator-setup-kit/`](hostgator-setup-kit/)
 > instala el CRM completo (app + WhatsApp + base de datos) en un VPS con un único comando, y el
 > [runbook de producción](docs/runbooks/waha-hostgator.md) ya asume ese entorno.
 >
-> **[👉 Contratar el VPS de HostGator con el descuento de la alianza](https://www.hostgator.com.br/52708-141-3-52.html)** —
-> datacenter en São Paulo, ideal para WhatsApp funcionando 24/7. *(enlace de partner — contratar por él apoya el proyecto y te sale más barato)*
+> Elige cualquier VPS compatible con Docker y consulta los precios directamente con el proveedor.
 >
 > **¿Todavía no tienes servidor?** Ejecuta esto **en tu propia computadora** (macOS, Linux o WSL).
 > Te dice qué plan contratar — con los números reales del runbook, no un "depende" — y te
 > devuelve el comando exacto para tu caso:
 >
 > ```bash
-> curl -fsSL https://raw.githubusercontent.com/melgarafael/DeskcommCRM/main/hostgator-setup-kit/comecar.sh | bash
+> curl -fsSL https://raw.githubusercontent.com/welltonsoaress/DeskcommCRM/main/hostgator-setup-kit/comecar.sh | bash
 > ```
 >
 > *(¿prefieres leer antes de ejecutar? clona el repo y corre `bash hostgator-setup-kit/comecar.sh` —
@@ -73,7 +72,7 @@ presiona Enter.
 Ya dentro del VPS:
 
 ```bash
-git clone https://github.com/melgarafael/DeskcommCRM.git
+git clone https://github.com/welltonsoaress/DeskcommCRM.git
 cd DeskcommCRM
 bash hostgator-setup-kit/install.sh
 ```
@@ -85,7 +84,7 @@ lista. Si falta Docker, el instalador pregunta y lo instala solo.
 
 | Ítem | Dónde conseguirlo |
 |---|---|
-| **VPS con Docker** | [HostGator](https://www.hostgator.com.br/52708-141-3-52.html) (alianza) — o cualquier VPS con Docker. 4 GB de RAM recomendados |
+| **VPS con Docker** | Cualquier proveedor compatible; 4 GB de RAM recomendados |
 | **Dominio** | Un registro **A** apuntando a la IP del VPS (ej.: `crm.tuempresa.com`) |
 | **Base de datos** | Cuenta gratis en [supabase.com](https://supabase.com) — 3 claves + la cadena de conexión del **Session pooler** |
 | **IA** | Una clave de **OpenRouter**, **Anthropic** u **OpenAI** — el instalador pregunta cuál quieres |
@@ -263,7 +262,7 @@ Toda pantalla tiene puerta en la navegación — el CI reprueba una pantalla que
 | **IA** | Vercel AI SDK v7 — OpenRouter, Anthropic, OpenAI y Google | El instalador pregunta cuál; se cambia después desde la pantalla |
 | **Validación** | Zod | Input externo, env, payloads |
 | **Observabilidad** | Sentry (scrub en error, transacción, span y breadcrumb) | Telemetría opt-in en la instalación |
-| **Hosting** | Cualquier VPS con Docker (HostGator/SP en la alianza) | App + WhatsApp + workers en tu propia máquina |
+| **Hosting** | Cualquier VPS con Docker | App + WhatsApp + workers en tu propia máquina |
 
 Detalles: [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
@@ -275,7 +274,7 @@ Detalles: [`ARCHITECTURE.md`](ARCHITECTURE.md).
 > Esta sección es para quien va a tocar el código.
 
 ```bash
-git clone https://github.com/melgarafael/DeskcommCRM.git
+git clone https://github.com/welltonsoaress/DeskcommCRM.git
 cd DeskcommCRM
 
 nvm use                     # Node 22
@@ -311,12 +310,12 @@ pnpm test:db       # Postgres efímero + baseline install/update + invariantes
 pnpm test:e2e      # Playwright (requiere dev server)
 ```
 
-**Estos checks son obligatorios** para mergear en `main`. Esta lista ya dijo "cuatro" y después "cinco" — **medí, no confíes en ella**:
+Configura los checks obligatorios para la `main` de este fork. La lista histórica era del repositorio original — **mide la protección del fork antes de confiar en ella**:
 
 ```bash
-gh api repos/melgarafael/DeskcommCRM/branches/main/protection \
+gh api repos/welltonsoaress/DeskcommCRM/branches/main/protection \
   --jq '.required_status_checks.contexts|join(", ")'
-# el 2026-08-14: verify, build-and-size, invariants, e2e, imagens-ok
+# la medición de 2026-08-14 pertenecía al repositorio original
 ```
 
 
@@ -381,9 +380,9 @@ Dos gates obligatorios **no** entran ahí y solo corren en CI: `e2e` (necesita u
 
 ## 🐛 Reportar bugs
 
-Abre un [issue](https://github.com/melgarafael/DeskcommCRM/issues/new/choose) — la plantilla pide lo que necesitamos (entorno, `/api/v1/health`, pasos). Correr `bash hostgator-setup-kit/healthcheck.sh` y pegar la salida ayuda mucho.
+Abre un [issue](https://github.com/welltonsoaress/DeskcommCRM/issues/new/choose) — la plantilla pide lo que necesitamos (entorno, `/api/v1/health`, pasos). Correr `bash hostgator-setup-kit/healthcheck.sh` y pegar la salida ayuda mucho.
 
-Para **vulnerabilidades de seguridad**, **NO abras un issue público** — usa el [reporte privado de vulnerabilidades](https://github.com/melgarafael/DeskcommCRM/security/advisories/new). Detalles en [`SECURITY.md`](SECURITY.md).
+Para **vulnerabilidades de seguridad**, **NO abras un issue público** — usa el [reporte privado de vulnerabilidades](https://github.com/welltonsoaress/DeskcommCRM/security/advisories/new). Detalles en [`SECURITY.md`](SECURITY.md).
 
 ---
 
@@ -414,10 +413,9 @@ Para **vulnerabilidades de seguridad**, **NO abras un issue público** — usa e
 
 ## 💬 Comunidad
 
-- **Discusiones:** [GitHub Discussions](https://github.com/melgarafael/DeskcommCRM/discussions)
-- **Issues:** [GitHub Issues](https://github.com/melgarafael/DeskcommCRM/issues)
-- **Instagram:** [@melgarafael](https://www.instagram.com/melgarafael)
-- **YouTube:** [youtube.com/@melgarafael](https://www.youtube.com/@melgarafael)
+- **Discusiones:** [GitHub Discussions](https://github.com/welltonsoaress/DeskcommCRM/discussions)
+- **Issues:** [GitHub Issues](https://github.com/welltonsoaress/DeskcommCRM/issues)
+- **Creador original:** [@melgarafael](https://www.instagram.com/melgarafael) (no es el canal oficial de este fork).
 
 ---
 
@@ -434,7 +432,7 @@ Este es un proyecto **self-host**: cada persona corre el CRM en su **propia infr
 - **El soporte es comunitario y "as-is".** No hay SLA — es open source mantenido por buena voluntad.
 - **Eres responsable de tu instalación.** Las actualizaciones no son automáticas (haces clic, o corres `update.sh`, cuando quieras), y mantener/respaldar tu servidor es cosa tuya.
 - **Protección de datos:** quien **hospeda** la instancia es el **controlador** de los datos personales tratados ahí (clientes, conversaciones, pedidos), con las obligaciones legales que eso implica. Los mantenedores del proyecto **no son** controladores ni operadores de tu instancia, y no tienen acceso a tu base, a tu WhatsApp ni a tu storage.
-- **Telemetría (Sentry):** `install.sh` **pregunta** durante la instalación y respeta tu respuesta; en modo no interactivo, sin `SENTRY_DSN` definido, la telemetría queda **apagada**. Si aceptas el Sentry de la comunidad, lo que se envía son **reportes de error** (stack trace) con documento, teléfono y correo sustituidos, cabeceras sensibles removidas, y token de webhook/invitación redactado de la URL — **sin** rastreo de performance y **sin** replay de sesión, que quedan en 0 en ese camino. Para apagarlo en cualquier momento: `SENTRY_DSN=off` en el `.env`. Para mandarlo a **tu** Sentry (ahí sí con performance y replay): `SENTRY_DSN=<tu-dsn>`. Qué se redacta, y por qué, está en [`lib/sentry/scrub.ts`](lib/sentry/scrub.ts); la resolución del DSN en [`lib/sentry/dsn.ts`](lib/sentry/dsn.ts).
+- **Telemetría (Sentry):** apagada por defecto en este fork, incluso con `SENTRY_DSN` vacío. Configura `SENTRY_DSN=<tu-dsn>` en `.env` para usar tu propia cuenta, o `SENTRY_DSN=off` para desactivarla. Los filtros están en [`lib/sentry/scrub.ts`](lib/sentry/scrub.ts); la resolución del DSN en [`lib/sentry/dsn.ts`](lib/sentry/dsn.ts).
 
 ---
 
@@ -442,7 +440,7 @@ Este es un proyecto **self-host**: cada persona corre el CRM en su **propia infr
 
 - **WAHA** ([devlikeapro](https://waha.devlikeapro.com/)) — motor de WhatsApp.
 - **Supabase** — Postgres + Auth + Storage + Realtime en una sola stack.
-- **HostGator** — la alianza de infraestructura que hizo posible el self-host de 1 comando.
+- **HostGator** — la alianza de infraestructura documentada por el proyecto original.
 - **Anthropic**, **OpenAI** y **OpenRouter** — los proveedores de IA que el CRM sabe usar.
 - **shadcn/ui** — base de componentes.
 - La comunidad que nos llevó del e-commerce a clínicas, inmobiliarias, infoproductos y más allá — ustedes definieron lo que es este proyecto.

@@ -100,12 +100,15 @@ de instalação fresca. `followup-journey`, `webhooks` e `capacidades-do-agente`
 `.github/workflows/publish-image.yml`: `imagens-ok` = as três imagens Docker constroem. **Obrigatório
 desde 2026-08-13.**
 
-**Os cinco são checks obrigatórios** na branch protection da `main` — medido em 2026-08-14 @ `741c4ec8`:
+**No repositório original**, os cinco eram checks obrigatórios na branch protection da `main` — medido em 2026-08-14 @ `741c4ec8`:
 
 ```console
 $ gh api repos/melgarafael/DeskcommCRM/branches/main/protection --jq '.required_status_checks.contexts|join(", ")'
 verify, build-and-size, invariants, e2e, imagens-ok
 ```
+
+Este fork precisa configurar a própria proteção; a medição histórica acima não
+prova que `welltonsoaress/DeskcommCRM` já exige esses checks.
 
 > Este bloco estava errado em quatro pontos até 2026-08-14 (dizia "três checks", "28 das 32
 > specs", "e2e não é obrigatório ainda" e listava como excluídas três specs que já rodavam).

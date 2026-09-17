@@ -91,7 +91,7 @@ cá. Registradores, passo a passo: `references/dominio-e-dns.md`.
 ### 5. Rodar o instalador — no modo interativo
 
 ```bash
-git clone https://github.com/melgarafael/DeskcommCRM.git deskcommcrm   # se ainda não clonou
+git clone https://github.com/welltonsoaress/DeskcommCRM.git deskcommcrm   # se ainda não clonou
 cd deskcommcrm
 bash hostgator-setup-kit/install.sh
 ```
@@ -106,8 +106,8 @@ Se precisar do modo sem perguntas (`--yes` com `.env` pronto), duas armadilhas m
 - **não copie** as linhas `APP_IMAGE`, `WORKER_IMAGE`, `SCHEDULER_IMAGE` e `*_PULL_POLICY` do
   `.env.hostgator.example` — elas apontam para o canal móvel `stable`, e a instalação deve ficar
   presa a uma versão numerada. Deixe ausentes; o instalador põe a última versão publicada.
-- escreva `SENTRY_DSN=off` se a pessoa **não** quer enviar relatórios de erro. Com o `.env` copiado
-  do exemplo, a pergunta de telemetria não aparece e a instalação sai enviando (issue #668).
+- neste fork, `SENTRY_DSN=off` já vem no exemplo. A telemetria só liga com
+  `SENTRY_DSN=<dsn-próprio>` informado deliberadamente pelo operador.
 
 Também medido (issue #670): o instalador **exige** uma chave de IA válida, mesmo que a documentação
 diga que dá para deixar vazia e cadastrar depois. Enquanto isso não muda, peça a chave antes.

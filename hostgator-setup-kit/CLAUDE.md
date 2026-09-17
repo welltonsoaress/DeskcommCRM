@@ -14,8 +14,8 @@ cada um — vive em `.agents/skills/deskcomm-instalar/SKILL.md` na raiz do repos
 Se você está vendo só esta pasta, clone o repositório (o instalador precisa dele de qualquer forma):
 
 ```bash
-git clone --depth 1 https://github.com/melgarafael/DeskcommCRM.git deskcommcrm
-cd deskcommcrm
+git clone --depth 1 https://github.com/welltonsoaress/DeskcommCRM
+cd DeskcommCRM
 cat .agents/skills/deskcomm-instalar/SKILL.md
 ```
 
@@ -64,8 +64,8 @@ discordarem, vale o guia; quando o guia e `install.sh` discordarem, vale o insta
 
    Ele valida cada resposta na hora, aceita `voltar`, retoma se interromper e mostra uma tela de
    conferência numerada. Evite `--yes` com o `.env` copiado do exemplo: isso instala no canal móvel
-   `stable` e liga a telemetria sem perguntar (issue #668); se precisar, apague as linhas
-   `*_IMAGE`/`*_PULL_POLICY` e escreva `SENTRY_DSN=off`.
+   `stable` (que pode não existir antes da primeira release deste fork); se precisar,
+   apague as linhas `*_IMAGE`/`*_PULL_POLICY`. `SENTRY_DSN=off` já é o padrão.
 4. **Primeiro acesso.** `https://<domínio>` (o cadeado leva ~1 min), login com o e-mail e a senha do
    admin. **A verificação em duas etapas é opcional** — liga em Configurações › Segurança. No
    onboarding, o WhatsApp é conectado por QR (deixe o app do celular já aberto em Aparelhos

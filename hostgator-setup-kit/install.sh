@@ -15,10 +15,9 @@ set -euo pipefail
 # de qualquer 'cd' (step 2 pode entrar num repo clonado à parte).
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 
-REPO_URL="${REPO_URL:-https://github.com/melgarafael/DeskcommCRM.git}"
-# Uma constante, dois usos (o fim feliz e o fim travado) — e o comecar.sh tem a
-# gêmea. Link repetido à mão vira link divergente na primeira troca.
-COMUNIDADE_URL="https://lp-comunidade.automatiklabs.com.br"
+REPO_URL="${REPO_URL:-https://github.com/welltonsoaress/DeskcommCRM.git}"
+SUPORTE_URL="https://github.com/welltonsoaress/DeskcommCRM/issues"
+VERSOES_URL="https://github.com/welltonsoaress/DeskcommCRM/releases"
 REPO_DIR="${REPO_DIR:-deskcommcrm}"
 COMPOSE="docker-compose.prod.yml"
 COMPOSE_TRAEFIK="docker-compose.traefik.yml"
@@ -1223,6 +1222,10 @@ else
   VERSAO_ALVO="latest"
   c_ylw "⚠ Não consegui descobrir a última versão publicada (rede?)."
   c_ylw "  Instalando pelo canal 'latest'. Depois rode: bash hostgator-setup-kit/update.sh"
+  if ! trio_publicado "latest"; then
+    c_ylw "⚠ As imagens :latest não estão acessíveis no registry (ausentes, privadas ou sem rede)."
+    c_ylw "  Se continuar, elas poderão ser construídas neste servidor — confirme o GHCR antes de instalar."
+  fi
 fi
 IMAGEM_APP_DEFAULT="${IMG_APP}:${VERSAO_ALVO}"
 
@@ -1404,33 +1407,10 @@ fi
 # 'traefik', então a variável está pronta para o .env logo abaixo.
 garantir_rede_do_proxy
 
-# ── Telemetria: perguntar, não presumir ─────────────────────────────────────
-# Issue #100. Antes, quem não definisse SENTRY_DSN mandava relatório de erro pro
-# Sentry da comunidade sem ter decidido nada — e só ficava sabendo na mensagem
-# final, DEPOIS de instalado. Num produto que roda na infraestrutura do usuário,
-# com dados de clientes dele, o consentimento vem antes.
-# Quem já tem valor no .env manda: a pergunta não sobrescreve escolha anterior.
-if [ -z "${SENTRY_DSN+x}" ]; then
-  if [ "$NONINTERACTIVE" = 1 ]; then
-    # Automação não consente por ninguém. Sem valor explícito, fica desligado.
-    SENTRY_DSN="off"
-  else
-    step "Telemetria de erros (opcional)"
-    printf '%s\n' "Podemos receber os relatórios de ERRO desta instalação (stack trace) para"
-    printf '%s\n' "corrigir bugs que afetam todo mundo. CPF, telefone e e-mail são substituídos,"
-    printf '%s\n' "cabeçalhos sensíveis removidos e tokens de webhook/convite redigidos da URL."
-    printf '%s\n' "NÃO enviamos rastreamento de performance nem replay de sessão."
-    printf '%s\n' "Seus dados de clientes, conversas e banco NUNCA saem daqui."
-    printf '\n%s\n' "Você pode mudar depois no .env, a qualquer momento."
-    read -r -p "  Enviar relatórios de erro anonimizados? (s/N) " _tel
-    if resposta_sim "${_tel:-}"; then
-      SENTRY_DSN=""
-      c_grn "✓ Telemetria de erros ligada — obrigado, isso ajuda o projeto."
-    else
-      SENTRY_DSN="off"
-      c_grn "✓ Telemetria desligada — nada será enviado."
-    fi
-  fi
+# Neste fork não há Sentry comunitário próprio configurado. Ausente ou vazio,
+# desliga. Um DSN explícito no .env continua sendo respeitado.
+if [ -z "${SENTRY_DSN:-}" ]; then
+  SENTRY_DSN="off"
 fi
 
 step "Escrevendo .env"
@@ -1651,8 +1631,7 @@ esac
   envq VAPID_PRIVATE_KEY "${VAPID_PRIVATE_KEY:-}"
   printf '# Telemetria de erros (você escolheu isto durante a instalação).\n'
   printf '#   "off"  = não envia nada.\n'
-  printf '#   vazio  = só ERRO pro Sentry da comunidade, com CPF/telefone/e-mail\n'
-  printf '#            substituídos e token de URL redigido. Sem trace, sem replay.\n'
+  printf '#   vazio  = não envia nada.\n'
   printf '#   <dsn>  = manda pro SEU Sentry (aí com performance e replay).\n'
   envq SENTRY_DSN "${SENTRY_DSN:-}"
   envq INTERNAL_SECRET "$INTERNAL_SECRET"
@@ -2107,9 +2086,9 @@ $(c_ylw "═══════════════════════�
 
        docker compose $(dc_files) up -d
 
-  Travou? Leve o log para a comunidade — tem gente que já passou por isso:
+  Travou? Abra uma issue neste fork (sem colar segredos nem dados de clientes):
 
-       ${COMUNIDADE_URL}
+       ${SUPORTE_URL}
 
 INCOMPLETO
   # Sai != 0 para que automação (e o --yes) saiba que não terminou saudável,
@@ -2155,12 +2134,10 @@ $(pendencia_dos_emails)
        Configurações → Segurança (guarde os códigos de recuperação).
        Perdeu o celular? bash hostgator-setup-kit/reset-mfa.sh ${OWNER_EMAIL}
 
-$(c_grn "  ─── A comunidade ──────────────────────────────────────")
+$(c_grn "  ─── Este fork ─────────────────────────────────────────")
 
-  É onde saem os avisos de versão nova, os agentes que outras pessoas já
-  configuraram e a resposta de quem roda exatamente este CRM:
-
-       ${COMUNIDADE_URL}
+  Dúvidas e erros: ${SUPORTE_URL}
+  Versões publicadas: ${VERSOES_URL}
 
 $(telemetria_no_banner)
 

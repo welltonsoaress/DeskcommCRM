@@ -160,8 +160,8 @@ describe("o init do cliente honra a política", () => {
  *
  * Mesma família do e2e que escrevia no banco de produção: o default é a coisa
  * mais perigosa quando o default é "manda para o nosso servidor de verdade".
- * `resolveSentryDsn("")` cai no DSN da comunidade — então a AUSÊNCIA da chave no
- * ambiente da suíte é o que mandava dado de teste para lá.
+ * Neste fork, `resolveSentryDsn("")` não aponta para nenhum serviço externo.
+ * O gerador de E2E ainda deve declarar o opt-out para manter a intenção visível.
  */
 describe("o ambiente da suíte desliga a telemetria", () => {
   it("o gerador do .env.e2e escreve SENTRY_DSN=off", () => {
@@ -171,16 +171,14 @@ describe("o ambiente da suíte desliga a telemetria", () => {
     );
     expect(
       /^SENTRY_DSN=off$/m.test(gerador),
-      "o ambiente da suíte voltou a ficar sem SENTRY_DSN. Sem a chave, " +
-        "`resolveSentryDsn` cai no DSN da comunidade e a suíte passa a MANDAR DADO " +
-        "para o Sentry de produção do projeto — e a cor do CI volta a depender do " +
-        "estado de cobrança de um terceiro.",
+      "o ambiente da suíte voltou a ficar sem SENTRY_DSN=off explícito.",
     ).toBe(true);
   });
 
   it("e `off` de fato desliga — a guarda acima não vale nada se o valor não desligasse", () => {
     expect(resolveSentryDsn("off")).toBeUndefined();
-    // Controle: o vazio NÃO desliga, e é por isso que a linha acima é obrigatória.
-    expect(isCommunityDsn(resolveSentryDsn(""))).toBe(true);
+    // A ausência de configuração não pode enviar dados ao projeto original.
+    expect(resolveSentryDsn("")).toBeUndefined();
+    expect(isCommunityDsn(resolveSentryDsn(""))).toBe(false);
   });
 });

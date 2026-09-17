@@ -15,7 +15,7 @@ Ao mudar um invariante aqui, atualize os dois na mesma sessão.
 | saber se sua mudança precisa virar imagem publicada | §Os 8 invariantes, nº 1 |
 | escolher a tag que uma instalação de cliente consome | §Política de canais |
 | lançar uma versão | §Checklist de release |
-| entender por que o namespace é `melgarafael` e não uma org | o ADR |
+| entender a decisão original de namespace e a migração deste fork | o ADR |
 
 ---
 
@@ -73,7 +73,7 @@ worker:
 
 # CERTO — imagem publicada; o build fica ao lado, como escape
 worker:
-  image: ${WORKER_IMAGE:-ghcr.io/melgarafael/deskcomm-worker:stable}
+  image: ${WORKER_IMAGE:-ghcr.io/welltonsoaress/deskcomm-worker:stable}
   build: { context: ., dockerfile: Dockerfile.worker }
 ```
 
@@ -104,13 +104,17 @@ OCI — no mínimo `source`, `revision`, `version`, `licenses` — e é constru�
   das três imagens não constrói. Ele existe porque a matriz gera um nome de check por imagem,
   e exigir os três pelo nome faria uma quarta imagem, um dia, escapar do gate em silêncio.
 
-  > **Ativado.** `imagens-ok` **é** required check da `main`. Medido em 2026-08-14:
+  > **No repositório original**, `imagens-ok` era required check da `main`, medido em 2026-08-14:
   >
   > ```console
   > $ gh api repos/melgarafael/DeskcommCRM/branches/main/protection \
   >     --jq '.required_status_checks.contexts|join(", ")'
   > verify, build-and-size, invariants, e2e, imagens-ok
   > ```
+  >
+  > No fork `welltonsoaress/DeskcommCRM`, configure a proteção da `main` separadamente;
+  > a medição acima não prova que ela está ativa aqui. Confira com
+  > `gh api repos/welltonsoaress/DeskcommCRM/branches/main/protection`.
   >
   > Este parágrafo já disse as duas coisas erradas, em ordem: primeiro afirmou no presente
   > que o check era obrigatório quando não era, depois — corrigido — afirmou que "ainda não
@@ -379,11 +383,11 @@ pelo item 3. Um gate que aprova por erro de autenticação é pior que gate nenh
 # Cole no shell antes de começar. Funciona anonimamente (o pacote é público).
 ghcr_status() {   # $1=imagem  $2=tag  → 200 existe | 404 não existe | 403 pacote privado
   local t
-  t=$(curl -s "https://ghcr.io/token?scope=repository:melgarafael/$1:pull&service=ghcr.io" \
+  t=$(curl -s "https://ghcr.io/token?scope=repository:welltonsoaress/$1:pull&service=ghcr.io" \
       | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
   curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $t" \
     -H 'Accept: application/vnd.oci.image.index.v1+json' \
-    "https://ghcr.io/v2/melgarafael/$1/manifests/$2"
+    "https://ghcr.io/v2/welltonsoaress/$1/manifests/$2"
 }
 ```
 
@@ -410,14 +414,14 @@ do banco. É o passo que mais trava na estreia de uma imagem nova.
          echo "$i: $(ghcr_status $i X.Y.Z)"; done      → 200 nas três
        403 em alguma? Torne o pacote público ANTES de seguir
 [ ] 8. A imagem reporta a versão certa:
-       docker run --rm ghcr.io/melgarafael/deskcommcrm:X.Y.Z \
+       docker run --rm ghcr.io/welltonsoaress/deskcommcrm:X.Y.Z \
          node -e 'console.log(process.env.APP_VERSION)'   → X.Y.Z
 [ ] 9. `gh release create vX.Y.Z` com as notas do CHANGELOG
 [ ] 10. SÓ AGORA: `stable` e X.Y.Z são o MESMO digest, nas três imagens:
         for i in deskcommcrm deskcomm-worker deskcomm-scheduler; do
           for t in X.Y.Z stable; do
             echo -n "$i:$t "; docker buildx imagetools inspect \
-              ghcr.io/melgarafael/$i:$t --format '{{.Manifest.Digest}}'; done; done
+              ghcr.io/welltonsoaress/$i:$t --format '{{.Manifest.Digest}}'; done; done
         → o par de cada imagem tem que bater
         Não bateu? Alguma coisa republicou depois do push da tag. NÃO siga:
         um canal apontando para build diferente da versão é o invariante 3
@@ -462,7 +466,7 @@ parque instalado** percorre, e é o único que a suíte de CI não exercita.
 
 | Camada | Artefato | Garante |
 |---|---|---|
-| CI (mecânico) | `imagens-ok` em `publish-image.yml` | imagem quebrada **reprova o merge** — é required check da `main`. Meça antes de confiar: `gh api repos/melgarafael/DeskcommCRM/branches/main/protection --jq '.required_status_checks.contexts'` |
+| CI (mecânico) | `imagens-ok` em `publish-image.yml` | imagem quebrada só **reprova o merge** se o check estiver configurado como obrigatório neste fork. Meça: `gh api repos/welltonsoaress/DeskcommCRM/branches/main/protection --jq '.required_status_checks.contexts'` |
 | CI (mecânico) | `tests/unit/packaging-artefato-do-cliente.test.ts` | serviço `build:`-only, pin upstream solto, `pull_policy` trocado e versão que mente reprovam |
 | CI (mecânico) | `tests/shell/update-guard.test.sh` | atualização que não pina as três imagens reprova |
 | CI (mecânico) | `hostgator-setup-kit/test-validators.sh` | instalação que nasce em tag móvel reprova |
@@ -473,6 +477,12 @@ parque instalado** percorre, e é o único que a suíte de CI não exercita.
 ---
 
 ## Decisões registradas
+
+**2026-09-17 — este fork publica no próprio namespace.** Para instalações novas
+de `welltonsoaress/DeskcommCRM`, o CI publica `ghcr.io/welltonsoaress/*` e o kit
+instala essas mesmas três imagens. A decisão original abaixo descreve o parque
+do projeto original e permanece como histórico; não autoriza trocar imagens de
+uma instalação já existente sem verificar o `.env` e planejar a migração.
 
 **2026-08-13 — o namespace fica em `melgarafael`.** Uma consultoria externa recomendou criar
 uma org `deskcommcrm` e migrar, sob a premissa de que o compose apontava para uma org

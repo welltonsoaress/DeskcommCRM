@@ -9,15 +9,13 @@
 #
 # Uso:
 #   bash comecar.sh
-#   curl -fsSL https://raw.githubusercontent.com/melgarafael/DeskcommCRM/main/hostgator-setup-kit/comecar.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/welltonsoaress/DeskcommCRM/main/hostgator-setup-kit/comecar.sh | bash
 #
 set -euo pipefail
 
-REPO_URL="${REPO_URL:-https://github.com/melgarafael/DeskcommCRM.git}"
-# Link de parceria com a HostGator. Mesma URL e mesmo rótulo do README: uma
-# promessa só, num lugar só — duas redações da mesma oferta viram duas ofertas.
-VPS_URL="https://www.hostgator.com.br/52708-141-3-52.html"
-COMUNIDADE_URL="https://lp-comunidade.automatiklabs.com.br"
+REPO_URL="${REPO_URL:-https://github.com/welltonsoaress/DeskcommCRM.git}"
+SUPORTE_URL="https://github.com/welltonsoaress/DeskcommCRM/issues"
+VERSOES_URL="https://github.com/welltonsoaress/DeskcommCRM/releases"
 
 # ── Aparência ───────────────────────────────────────────────────────────────
 # Gêmeas das do install.sh (que por sua vez é standalone porque roda antes do
@@ -129,14 +127,10 @@ mostrar_requisitos() {
     • Ubuntu 22.04 LTS ou 24.04 LTS
     • Datacenter em São Paulo — é o que segura a latência do WhatsApp no Brasil
 
-  Onde contratar:
-
-       ${VPS_URL}
+  Onde contratar: qualquer provedor de VPS com Docker que atenda a esses requisitos.
 
 REQ
-  c_dim "  Esse é um link de parceria: assinar por ele sai com desconto e ajuda a"
-  c_dim "  manter o projeto. O CRM é MIT e roda em qualquer servidor — se você já"
-  c_dim "  tem um, ou prefere outro provedor, funciona igual."
+  c_dim "  Este fork não possui link de parceria com um provedor de VPS."
   printf '\n'
 }
 
@@ -192,7 +186,6 @@ MENU
   case "$escolha" in
     1)
       mostrar_requisitos
-      abrir "$VPS_URL"
       c_dim "  Quando o servidor estiver de pé, rode este mesmo comando de novo e"
       c_dim "  escolha a opção 2 — eu te dou o passo seguinte."
       ;;
@@ -243,9 +236,7 @@ done
 cat <<FIM
   ─── Quando travar ────────────────────────────────────────
 
-  Tem gente rodando exatamente este CRM na comunidade, e é lá que saem os
-  avisos de versão nova:
-
-       ${COMUNIDADE_URL}
+  Dúvidas e erros deste fork: ${SUPORTE_URL}
+  Versões publicadas: ${VERSOES_URL}
 
 FIM

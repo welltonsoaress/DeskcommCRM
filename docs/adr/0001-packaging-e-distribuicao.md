@@ -15,6 +15,13 @@
 
 ## Contexto
 
+> **Aditivo de 2026-09-17 (fork `welltonsoaress/DeskcommCRM`):** D1 abaixo é a
+> decisão histórica do repositório original, não uma configuração para este
+> fork. Este fork publica suas três imagens em `ghcr.io/welltonsoaress` e aponta
+> novas instalações para esse namespace. A justificativa de preservar o `.env`
+> de instalações existentes continua valendo: uma VPS antiga não migra só
+> porque um arquivo foi alterado no GitHub.
+
 O DeskcommCRM é distribuído como self-host: a monetização é a venda da VPS com o sistema
 instalado, e a experiência de quem instala **é** o produto. Isso torna o artefato distribuído —
 imagem, compose, kit — parte do contrato, não detalhe de infraestrutura.

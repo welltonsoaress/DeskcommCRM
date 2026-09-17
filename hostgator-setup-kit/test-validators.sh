@@ -1805,6 +1805,9 @@ echo "packaging: a tag do git não basta — as imagens têm de existir"
 # GHCR nasce privado, e repositório público não muda isso.
 TMP_PRIV="$(mktemp -d)"
 (
+  # Sem depender de tags no GitHub de ninguém: reproduz o primeiro deploy
+  # deste fork, quando origin ainda não publicou uma versão numerada.
+  git init --quiet --bare "$TMP_PRIV/sem-tags.git"
   montar_vps "$TMP_PRIV/vps" "crmpriv" <<'STUB'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$DOCKER_LOG"
@@ -1814,8 +1817,9 @@ esac
 exit 0
 STUB
   export DUBLE_GHCR=403          # pacote existe mas está PRIVADO
+  export REPO_URL="$TMP_PRIV/sem-tags.git"
   saida="$(rodar install.sh --yes)"
-  unset DUBLE_GHCR
+  unset DUBLE_GHCR REPO_URL
 
   if ! printf '%s' "$saida" | grep -q "construídas neste servidor"; then
     printf '  ✗ com as imagens inalcançáveis, o instalador não avisou que ia construir aqui\n'

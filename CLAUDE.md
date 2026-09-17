@@ -364,12 +364,15 @@ Checks **obrigatórios** na branch protection da `main` (verificado na configura
   **Por que não há mais número aqui.** O conserto que este parágrafo pedia era pôr a prosa sob gate — `tests/unit/e2e-cobertura-completa.test.ts` cobrando também o texto daqui. Tirar o número é melhor e mais barato: não há o que policiar, e a diferença entre disco e CI segue vigiada onde importa, no próprio teste, que reprova toda spec nova que não esteja em `SPECS_PARTE_*` ou em `FORA_DO_CI` **com motivo escrito**. Prosa que nenhum gate lê é prosa que diverge; prosa que não afirma número não tem como divergir.
 - **`imagens-ok`** (`publish-image.yml`) — reprova quando qualquer uma das três imagens Docker não constrói. **É obrigatório desde 2026-08-13**; este arquivo dizia o contrário em outro parágrafo (ver a doutrina de packaging acima, já corrigida).
 
-Todos os **cinco** são **obrigatórios** — medido em 2026-08-14 na branch protection:
+No repositório original, os **cinco** eram **obrigatórios** — medido em 2026-08-14 na branch protection:
 
 ```console
 $ gh api repos/melgarafael/DeskcommCRM/branches/main/protection --jq '.required_status_checks.contexts|join(", ")'
 verify, build-and-size, invariants, e2e, imagens-ok
 ```
+
+Este fork precisa configurar a própria proteção; a medição histórica acima não
+prova que `welltonsoaress/DeskcommCRM` já exige esses checks.
 
 Duas correções que este bloco já pagou: o `e2e` entrou para a lista depois de o arquivo ser escrito, e
 a versão anterior dizia que ele "ainda não é obrigatório"; depois o `imagens-ok` entrou e o arquivo
