@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useT } from "@/hooks/i18n/useT";
 import { useTagDeIdioma } from "@/hooks/i18n/useLocaleDeData";
+import { rotuloDoEstadoDoCanal } from "@/lib/channels/estado";
 
 interface Session { id: string; display_name: string | null; phone_number: string | null; status: string }
 interface Member { user_id: string; role: string; accepted_at: string | null; revoked_at: string | null;
@@ -16,6 +17,8 @@ interface History { id: string; kind: string; status: string; error_code: string
   delivered_at: string | null; read_at: string | null; created_at: string }
 interface InboundHistory { id: string; kind: string; status: string; error_code: string | null; created_at: string }
 interface ActionHistory { id: string; action: string; status: string; error_code: string | null; created_at: string }
+
+const DIAS_DA_SEMANA = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"] as const;
 
 const ERRORS: Record<string, string> = {
   commercial_offline: "Comercial desconectado: reconecte o WhatsApp.",
@@ -131,7 +134,7 @@ export function ManagementSettingsClient({ organizationName, readOnly }: { organ
         <select aria-label={t("WhatsApp comercial conectado")} className="rounded-md border bg-background p-2" disabled={readOnly || busy}
           value={form.channel_session_id} onChange={(e) => patch({ channel_session_id: e.target.value })}>
           <option value="">{t("Selecione a conexão")}</option>
-          {sessions.map((s) => <option key={s.id} value={s.id}>{s.display_name ?? s.phone_number ?? t("Número comercial")} · {s.status}</option>)}
+          {sessions.map((s) => <option key={s.id} value={s.id}>{s.display_name ?? s.phone_number ?? t("Número comercial")} · {rotuloDoEstadoDoCanal(s.status, t)}</option>)}
         </select>
       </label>
       <label className="grid gap-1 text-sm">{t("Usuário gestor da empresa")}
@@ -175,7 +178,7 @@ export function ManagementSettingsClient({ organizationName, readOnly }: { organ
       <label className="grid gap-1 text-sm">{t("Dia do comparativo")}
         <select className="w-fit rounded-md border bg-background p-2" disabled={readOnly || busy}
           value={form.weekly_day} onChange={(e) => patch({ weekly_day: Number(e.target.value) })}>
-          {["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"].map((day, i) =>
+          {DIAS_DA_SEMANA.map((day, i) =>
             <option key={day} value={i}>{t(day)}</option>) }
         </select>
       </label>

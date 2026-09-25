@@ -62,8 +62,19 @@ describe("a tag nasce no CI, e nunca do GITHUB_TOKEN", () => {
     // GitHub). Se a tag nascesse dele, `publish-image.yml` nunca rodaria: a tag
     // existiria, nenhum erro apareceria, e NENHUMA VPS receberia a atualização.
     expect(release).toContain("actions/create-github-app-token");
-    expect(release).toContain("secrets.RELEASE_APP_ID");
+    expect(release).toContain("vars.RELEASE_APP_CLIENT_ID");
     expect(release).toContain("secrets.RELEASE_APP_PRIVATE_KEY");
+  });
+
+  it("o corte aguarda CI, E2E e build do próprio commit antes de publicar a tag", () => {
+    const t = job(release, "cortar-tag");
+    const espera = t.indexOf("- name: Aguardar validações deste commit");
+    const tag = t.indexOf("- name: Criar e empurrar a tag");
+    expect(espera).toBeGreaterThan(0);
+    expect(tag).toBeGreaterThan(espera);
+    expect(t).toContain("actions: read");
+    expect(t).toMatch(/- name: Aguardar validações deste commit\n\s+if: steps\.pendente\.outputs\.cortar == 'sim'/);
+    expect(t).toContain("pnpm exec tsx scripts/aguardar-checks-release.ts");
   });
 
   it("nenhum job do release pede escopo de escrita ao GITHUB_TOKEN", () => {

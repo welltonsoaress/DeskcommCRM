@@ -267,6 +267,16 @@ test.describe("a ocupação do Google na grade da agenda", () => {
     // Visão MÊS: outro recorte, outra busca. Aqui nem a semente do servidor
     // chegava, porque `naJanelaDoServidor` vira falso.
     await page.getByTestId("visao-mes").click();
+    // A semana pode cruzar a virada do mês: a âncora permanece no dia em que
+    // navegamos, enquanto o evento foi criado na quarta-feira dessa semana.
+    // Se caírem em meses distintos, abra o mês do evento antes de procurá-lo.
+    const mesDoEvento = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" })
+      .format(new Date(`${alvo}T12:00:00Z`));
+    if ((await page.getByTestId("periodo").textContent())?.toLowerCase() !== mesDoEvento) {
+      const eventoNoPrimeiroMes = alvo.slice(0, 7) === dias[0]?.slice(0, 7);
+      await page.getByTestId(eventoNoPrimeiroMes ? "periodo-anterior" : "periodo-seguinte").click();
+    }
+    await expect(page.getByTestId("periodo")).toHaveText(mesDoEvento);
     await expect(
       page.getByTestId(`chip-mes-${eventoId}`),
       "a ocupação do Google não aparece na visão Mês",
