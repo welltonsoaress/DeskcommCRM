@@ -8,6 +8,258 @@ Se você roda o DeskcommCRM numa VPS, **leia a seção da versão para a qual es
 
 ## [Não lançado]
 
+## [1.19.0] — 2026-09-25
+
+### Adicionado
+
+- **Confirme comandos do gestor e receba comparativos semanais** O Assistente de gestão pode preparar comandos de funil, tarefas, agenda e atendimento pelo WhatsApp após ativação separada na organização. Cada comando exige confirmação do gestor verificado, registra o resultado e mostra incertezas na Central. A reserva direta exige cliente e horário já combinado e passa pela validação da agenda; pedidos ainda não combinados viram tarefa de confirmação para a equipe. O comparativo semanal usa oportunidades e agendamentos medidos no fuso da empresa; o gestor pode recebê-lo automaticamente e optar por avisos de tarefas vencidas.
+
+  Respostas antigas deixam de ser aproveitadas ao trocar o gestor. Códigos vencidos na fila dão lugar a uma orientação para refazer o pedido, e códigos ainda válidos informam o prazo restante. Mudanças de etapa ou atendimento antes da confirmação são recusadas com motivo no histórico; a reserva mantém o responsável escolhido na proposta e as ações delegadas preservam a auditoria do gestor.
+
+- **O gestor consulta a empresa pelo WhatsApp comercial** Cada empresa pode cadastrar um gestor e seu WhatsApp no Assistente de gestão.
+  Depois que o gestor confirma o número respondendo ao código enviado pelo
+  comercial, ele pode fazer perguntas de leitura sobre leads, avisos, casos e
+  agenda pelo WhatsApp. A empresa também pode escolher um resumo diário e
+  avisos críticos da Central e do Radar.
+
+  Configuração, entregas, falhas e tentativas seguras aparecem na nova página.
+  Quem não cadastrar o gestor continua sem mensagens gerenciais.
+
+- **Falta sem retorno depois da régua de recuperação vira aviso na Central** Quando um cliente falta a um compromisso e a equipe confirma a falta, o sistema já matricula
+  esse contato num fluxo de recuperação — as mensagens de reengajamento que tentam remarcar. Até
+  agora, se a régua inteira era enviada e o cliente **nunca respondia**, o fluxo simplesmente
+  terminava: o card ficava parado na mesma etapa e ninguém era avisado de que a recuperação tinha
+  esgotado.
+
+  Agora, quando isso acontece, abre um aviso na Central de avisos apontando para o compromisso —
+  "Cliente faltou e não respondeu à recuperação" —, para alguém decidir o próximo passo e mover o
+  card no funil. É um aviso por falta (o mesmo compromisso remarcado gera uma falta nova, e um
+  aviso novo); reprocessar não duplica.
+
+  O construtor de fluxo não move etapa por conta própria de propósito — faltar a uma visita não é
+  o negócio esfriando, e quem decide isso continua sendo uma pessoa.
+
+- **Chamada de voz pelo WhatsApp — desligada por padrão, e com botão de desligar de verdade** O sistema passa a poder fazer e receber **chamadas de voz pelo WhatsApp**, e ela chega
+  **desligada**. Atualizar não liga nada: nenhum número seu é conectado a nada, nenhum serviço
+  novo sobe na sua VPS, e nada muda na sua tela até você decidir.
+
+  A razão de tanto cuidado está escrita na própria tela, antes do botão: para fazer chamadas, o
+  sistema precisa conectar **um segundo aparelho** ao mesmo número de WhatsApp que você já usa
+  para atender — e essa conexão não é feita pelo caminho oficial do WhatsApp. Se ele entender
+  isso como uso indevido, quem é bloqueada é a **conta**, não só a chamada: você perde também as
+  mensagens desse número. Por isso ligar é decisão de quem administra a empresa, exige marcar
+  que leu o aviso, e fica registrado quem aceitou e quando.
+
+  E desligar desliga mesmo. Antes, o único botão que existia era o de conectar — não havia
+  caminho de volta: apagar a configuração escondia a tela e deixava o aparelho vinculado ao seu
+  número para sempre, do lado do WhatsApp. Agora, ao desligar, o sistema **desconecta o aparelho**
+  de verdade e só então marca como desligado; se a desconexão falhar, ele avisa e mantém tudo
+  como estava, em vez de dizer que acabou com o aparelho ainda lá.
+
+  No servidor, o serviço de chamada de voz também nasce desligado: ele só é criado quando quem
+  administra a instalação o liga no arquivo de configuração. Quem não usar a chamada de voz não
+  paga por ela — nem em memória da VPS, nem em superfície exposta. O serviço usado é o oficial
+  do projeto WaCalls, fixado por versão exata e com login obrigatório; ele não é acessível pela
+  internet, apenas pelo próprio sistema.
+
+  Trabalho original de @eudanielhenrique.
+
+- **Os e-mails de acesso passam a funcionar (e a ter marca) num Supabase próprio** Quem roda **Supabase self-hosted** ganha o que só existia na nuvem: e-mail de confirmação de conta e de redefinição de senha com a marca da instalação, e — o que importa mais — com o link que **fecha a sessão**.
+
+  O app passa a servir os dois moldes em `/email-templates/confirmation` e `/email-templates/recovery`. Aponte o GoTrue para eles:
+
+  ```bash
+  GOTRUE_MAILER_TEMPLATES_CONFIRMATION=https://SEU_DOMINIO/email-templates/confirmation
+  GOTRUE_MAILER_TEMPLATES_RECOVERY=https://SEU_DOMINIO/email-templates/recovery
+  GOTRUE_MAILER_SUBJECTS_CONFIRMATION="Confirme seu e-mail · SUA MARCA"
+  GOTRUE_MAILER_SUBJECTS_RECOVERY="Redefinir sua senha · SUA MARCA"
+  ```
+
+  **Nada muda para quem não apontar**, e nada muda na nuvem do Supabase — lá o caminho continua sendo o `marca-emails.sh` pela Management API.
+
+  **O kit ensina e confere, mas não escreve — e o motivo é honesto.** O GoTrue não é serviço deste compose: o kit sobe `app`, `worker`, `scheduler`, `waha`, `redis`, `srh` e `caddy`, e o Supabase próprio é outra stack, que pode nem estar na mesma máquina. Escrever nela seria o instalador editar instalação de terceiro. Então o `install.sh` passa a imprimir as quatro linhas exatas quando a topologia é própria (antes ele mandava o self-hoster para `supabase.com/dashboard`, que ele não tem), e `bash hostgator-setup-kit/healthcheck.sh` ganhou uma seção que **mede o estado**: se o app serve o molde, se algum GoTrue desta máquina aponta para ele, e se o valor configurado é URL — acusando em vermelho o caminho de arquivo que falha calado.
+
+  **Por que isso conserta e não só embeleza.** O modelo padrão do GoTrue linka para `/auth/v1/verify`, que devolve um `code` PKCE. O verificador desse code vive num cookie `SameSite=Strict`, e clique vindo de webmail é navegação cross-site: o cookie não viaja e a sessão nunca fecha. A conta é confirmada, a pessoa entra pela senha, e fica sem organização e sem menu. Os moldes do app linkam com `token_hash`, que não depende de cookie nenhum.
+
+  **A marca passa a seguir o banco.** O `marca-emails.sh` lê o `.env`, então trocar nome ou cor em **Configurações › Marca** não reescrevia os e-mails de acesso. Servindo pelo app, a marca é resolvida a cada busca e o GoTrue re-busca sozinho a cada 10 minutos (`GOTRUE_MAILER_TEMPLATE_MAX_AGE`) — sem reiniciar nada e sem rodar script.
+
+  **Se você seguiu a receita antiga, troque as variáveis.** Até esta versão, `docs/deploy-selfhost/README.md` e o `marca-emails.sh` mandavam apontar `GOTRUE_MAILER_TEMPLATES_*` para um **caminho de arquivo**. Isso não funciona e falha calado: o GoTrue cola o que não começa com `http` no fim do `SITE_URL` e faz um GET, então ele busca `https://SEU_DOMINIO/opt/.../confirmation.html`, recebe o HTML da tela de login e manda **isso** para a caixa de entrada do cliente. Medido em 2026-09-09; o Gmail marcou como phishing.
+
+  Achado instalando numa VPS com Supabase próprio, seguindo a documentação do produto do começo ao fim.
+
+- **Guias do assistente para quem instala, opera e contribui com um CLI de IA** Com o repositório aberto no Claude Code, Codex, Cursor, OpenCode ou Antigravity, cinco guias carregam sozinhos na hora certa: instalar e consertar a instalação, montar um cliente por nicho (agentes, roteadores, follow-ups, base de conhecimento), analisar as métricas sem expor dado pessoal, afinar o prompt de um agente com dados, e contribuir com um PR que passa na triagem de primeira. O roteiro do kit de instalação foi corrigido (a verificação em duas etapas é opcional; três provedores de IA; token do Supabase) e o banner final do instalador passa a refletir a escolha de telemetria.
+
+- **O modelo de IA padrão da organização passa a ter tela** O padrão de IA da organização decide o modelo de **todo ponto que não tem escolha própria** — numa instalação nova, 24 dos 25.
+
+  Ele existia no banco e já era usado para decidir cada ponto, mas não aparecia em
+  lugar nenhum: não dava para ver qual era, e muito menos trocar sem mexer no
+  banco à mão.
+
+  Agora ele aparece em **Agente de IA › Provedores**, junto com os pontos, e pode
+  ser trocado ali. A troca confere se o modelo existe no catálogo daquele provedor
+  antes de gravar — um erro de digitação viraria o padrão da organização e
+  derrubaria todos os pontos que herdam dele de uma vez.
+
+  A escrita preserva o resto das configurações da organização (a marca e a
+  política de verificação em duas etapas moram no mesmo lugar) e fica registrada
+  no histórico de auditoria.
+
+  Você não precisa fazer nada para adotar. Quem nunca mexeu continua no padrão de
+  sempre; o que muda é que agora dá para ver e escolher.
+
+- **Chamada de voz pelo WhatsApp — ligar e atender de dentro do CRM** O CRM passa a fazer e receber ligações de voz pelo WhatsApp. Quem administra pareia um
+  segundo aparelho no mesmo número, em **Configurações › Conexões**, e o botão **Chamar**
+  aparece na ficha de todo contato com telefone. Chamada recebida toca para o time inteiro,
+  como um telefone de escritório; o painel da ligação em andamento, com mudo e desligar, é só
+  de quem está na linha.
+
+  O que o sistema faz por conta própria enquanto isso acontece:
+
+  - **O assistente se cala durante a ligação** naquela conversa e volta a falar quando você
+    desliga. Ele não responde por cima de alguém que está ao telefone com o cliente.
+  - **Ligação atendida conta como contato feito.** O negócio deixa de aparecer como parado no
+    Radar de Risco, e o assistente para de propor "retomar contato" com quem você acabou de
+    atender.
+  - **Ligação atendida conta como trabalho seu** no relatório de atendentes.
+  - **Chamada perdida vira aviso na Central**, com o número de quem ligou, o motivo em
+    português e um botão para ligar de volta.
+  - **A linha do tempo do negócio diz quem atendeu**, não "Sistema".
+
+  Três recusas deliberadas, porque o certo é não fazer:
+
+  - **Contato que pediu para não ser incomodado não recebe ligação.** Quem mandou "PARAR" já
+    não recebia mensagem; agora também não recebe telefonema.
+  - **Só quem está na linha desliga.** Ninguém derruba a ligação de um colega.
+  - **Apagar o canal não apaga o histórico de ligações** — a exclusão vira arquivamento, e o
+    diálogo diz quantas chamadas estão penduradas antes de você confirmar.
+
+  Quem exercer o direito de ser esquecido tem o telefone das chamadas apagado junto com o
+  resto; quem pedir seus dados recebe o registro das ligações no relatório.
+
+  Nada muda para quem não parear o recurso: ele é opcional e nasce desligado.
+
+  Trabalho original de @eudanielhenrique.
+
+### Alterado
+
+- **A marca do produto ganha símbolo e logotipo** Instalação que não configurou marca própria passa a mostrar o logotipo do
+  Deskcomm no menu lateral, na tela de entrada e no ícone da aba do navegador —
+  no lugar do nome em texto e da letra "D" sobre a cor de destaque. Quem já
+  definiu nome ou logo próprio em Marca não vê nenhuma diferença: a marca
+  configurada continua valendo em todos esses lugares.
+
+- **No editor de follow-up, dá para organizar o fluxo e excluir um nó ou uma aresta** Montar um follow-up no canvas exigia arrastar cada bloco à mão, e o único botão de
+  apagar era o do fluxo inteiro. Quem errava uma ligação tinha que desfazer o rascunho
+  ou começar de novo.
+
+  Agora, no editor, **Organizar** empilha o fluxo conectado de cima para baixo;
+  **Excluir nó** e **Excluir aresta** saem no painel do item selecionado e na barra de
+  cima — sem apagar o fluxo. As ligações passam a ser em degrau (não diagonais por
+  cima dos blocos), e os botões de zoom do canvas seguem o tema escuro em vez de
+  sumirem no fundo branco da biblioteca.
+
+- **Instalações novas usam o repositório e as imagens deste fork** O kit de instalação, o compose de produção e a documentação de deploy apontam
+  para `welltonsoaress/DeskcommCRM` e para as três imagens publicadas em
+  `ghcr.io/welltonsoaress`. Instalações já existentes não mudam automaticamente:
+  as referências gravadas no `.env` da VPS precisam ser avaliadas antes de uma
+  migração. A telemetria herdada fica desligada por padrão; para monitorar erros,
+  configure o DSN da sua própria conta Sentry.
+
+### Corrigido
+
+- **Webhook de captação agora reconhece o formato de lead do RD Station** Ao apontar um webhook do RD Station para uma fonte de captação de leads, os
+  envios reais não viravam lead: o RD Station empacota os dados dentro de uma
+  lista (`leads: [...]`), e o leitor de campos do webhook só olhava o nível de
+  cima, então nome, e-mail e telefone chegavam "em branco" e a captação era
+  recusada. O botão interno "Enviar lead de teste" funcionava porque manda os
+  campos soltos — o que escondia o problema.
+
+  Agora o webhook reconhece esse formato: extrai o nome, o e-mail e o telefone
+  (inclusive quando o telefone vem no campo de celular do RD, e não no campo de
+  telefone comercial, que costuma vir vazio) e cria o lead na fonte/funil/etapa
+  configurados. Reenvio do mesmo evento pelo RD Station não gera lead duplicado.
+
+  Os formatos que já funcionavam (campos soltos, Respondi) continuam iguais. Você
+  não precisa fazer nada para adotar — a partir desta versão os leads do RD
+  Station passam a entrar sozinhos.
+
+- **Preferências de aviso param de divergir entre o servidor e o navegador** A tela de configurações de notificação abria com o navegador discordando do HTML que o servidor tinha mandado. Quem havia desligado o push de mensagem via, por um instante, o interruptor ligado — e o React reagia a essa discordância descartando e refazendo a árvore da tela no cliente.
+
+  O valor era lido dentro do inicializador de `useState`, que roda de novo na hidratação. Sem `window`, essa leitura devolve o padrão (tudo ligado); com `window`, devolve o que está no `localStorage`. Os dois lados não tinham como concordar para quem tivesse mudado qualquer preferência — em dez interruptores e no identificador que a tela de alertas procura.
+
+  A tela passou a ler as preferências por `useSyncExternalStore`, o mesmo mecanismo que o seletor de tema já usa desde o #666: existe um valor determinístico para a comparação de hidratação, e só depois do commit o React troca para o valor real. O interruptor continua respondendo na hora, sem recarregar a página.
+
+  Sem mudança de configuração: nada a editar no `.env` e nenhum passo a mais na atualização.
+
+  Achado a partir do relato de que a divergência reaparecia a cada conserto — a leitura do navegador voltava para dentro de um inicializador novo. Junto vem a guarda que reprova esse padrão, para que a terceira instância não nasça igual.
+
+- **Quem é convidado entra na empresa ao confirmar o e-mail, sem mais um clique** Confirmar o e-mail vindo de um convite passa a **criar o vínculo** e abrir o CRM já dentro da empresa. Antes, a confirmação levava a uma tela com um botão "Aceitar convite" — e quem não o apertava terminava autenticado, sem organização e sem menu, num CRM vazio.
+
+  Três consertos, todos no ciclo de vida do vínculo:
+
+  - **O convite é aceito na própria confirmação.** A rota já sabia tudo o que o botão exigia, e com garantia mais forte: o e-mail do convite é comparado com o que o provedor de autenticação acabou de confirmar. Se o vínculo falhar (convite revogado, banco fora), a tela de aceite continua existindo e recebe a pessoa — nada fica sem saída.
+  - **Clicar duas vezes no link do e-mail não desloga mais ninguém.** O token é de uso único: o segundo clique falhava e mandava para a tela de login **quem já estava logado pelo primeiro**, com o cookie de sessão intacto. A pessoa reentrava pela senha e perdia o fio do convite. Agora a rota reconhece a sessão que já existe e segue.
+  - **Acesso revogado deixa de virar convite para abrir empresa.** Quem tinha o vínculo retirado caía numa tela vazia oferecendo "Configure sua organização" — uma revogação virando criação de tenant. Agora vê uma tela que nomeia o que aconteceu, e a ação de recuperação recusa com o motivo certo, em vez da mensagem sobre convite pendente que aparecia por acaso.
+
+  Nada muda na configuração: não há variável nova, passo de atualização nem mudança de schema.
+
+  Achado instalando numa VPS com Supabase self-hosted, com dois convidados reais que não conseguiram entrar.
+
+- **Acompanhe perguntas do gestor e falhas entre agenda e funil** O Assistente de gestão mostra perguntas recebidas e seu andamento, recupera consultas quando a fila falha e continua tentando entregar respostas prontas mesmo se outra etapa do ciclo falhar. Falhas de preparação aparecem na Central. A agenda recusa datas impossíveis e avisa quando não consegue atualizar ou vincular o negócio; um problema nesse aviso não invalida um compromisso já salvo. Agentes com ferramentas que necessariamente alteram negócios precisam ter um funil selecionado antes da publicação.
+
+- **Conectar um número de WhatsApp voltou a funcionar** Conectar um número de WhatsApp novo — no onboarding ou pela Central de Conexões — e reconectar
+  um número que caiu falhavam com "Falha na comunicação com o WhatsApp (WAHA)" (`waha_create_400`),
+  e o canal ficava preso em "Parado" pedindo reparo.
+
+  A causa: o identificador interno que o sistema gera para a sessão no WAHA tinha 69 caracteres, e
+  a versão do WAHA que o kit usa recusa identificadores com mais de 54 — então nenhuma sessão nova
+  chegava a ser criada do outro lado. O identificador passou a ter 45 caracteres.
+
+  Canais que já ficaram presos por causa disso são consertados na atualização (o identificador é
+  regravado no formato novo); nenhum número já pareado é tocado. Depois de atualizar, quem estava
+  travado é só clicar em Conectar/Reconectar de novo.
+
+- **Release aguarda os testes e o resumo do gestor volta a responder** Uma versão só recebe tag depois que CI, testes de banco, E2E e build passam no mesmo commit da main. O resumo e o comparativo do Assistente de gestão voltam a consultar o nome correto da empresa. A tela de gestão traduz seus controles e mostra o estado legível do WhatsApp.
+
+- **Revogar um membro deixa de ser uma porta que só abre por fora** Revogar sumia com a pessoa. Ela desaparecia da lista de Equipe, e a única forma de devolver o acesso era emitir um convite novo — um caminho longo, com três becos, todos medidos numa instalação real com alguém de verdade preso neles.
+
+  **O que muda:**
+
+  - **O membro revogado continua na lista**, com o estado `Revogado`, e quem administra devolve o acesso pelo menu da própria linha. Antes ele simplesmente sumia.
+  - **Quem já tem conta e clica num convite** deixa de receber *"Não foi possível criar a conta. Tente novamente."* — instrução impossível, porque tentar de novo nunca funciona. Passa a ler que já tem conta, com um botão que entra **e** cai direto no aceite.
+  - **A tela de acesso revogado deixa de ser beco:** ela diz que, se chegou convite novo, o link do e-mail funciona mesmo dali.
+
+  **Nada disso mudou o banco.** O comando que aceita convite já sabia reativar quem foi revogado, desde que o convite seja posterior à revogação — e foi exatamente isso que a prova em tela confirmou. O que faltava era caminho até ele.
+
+  **Reativar não promove.** Ela devolve o papel que a pessoa tinha; trocar papel continua sendo outra ação, com outra rota. Juntar as duas faria uma reativação distraída virar promoção silenciosa.
+
+  **Quem devolveu o acesso fica registrado** (`member.reactivated`). A coluna que guarda a revogação volta a ficar vazia e não conta história nenhuma — a trilha é a única resposta para "quem readmitiu esta pessoa, e quando?".
+
+- **Uma requisição que demora demais não vira mais um erro genérico na tela** Quando uma chamada à API não respondia a tempo, o navegador mostrava um erro genérico ("signal is aborted without reason") em vez de dizer que foi um tempo esgotado. Agora o motivo do cancelamento vem explícito, com o mesmo nome que o resto do produto já usa para timeout — quem lida com o erro consegue reconhecê-lo, e quem só vê a tela entende o que aconteceu.
+
+- **A chamada de voz avisa quando não há áudio, em vez de contar o tempo em silêncio** O painel da ligação em andamento mostrava o cronômetro correndo assim que o WhatsApp
+  atendia — e o cronômetro continuava correndo mesmo quando o som não chegava ao navegador.
+  Uma ligação muda tinha exatamente a mesma aparência de uma ligação perfeita: nenhum aviso,
+  nenhum sinal, só o relógio. Quem instalou numa VPS ficava sem saber se o problema era o
+  microfone, a rede do escritório ou o produto.
+
+  Agora o painel escuta a conexão de áudio de verdade. Enquanto ela está abrindo, ele diz
+  **"Abrindo o áudio…"**. Se ela não abrir, ele diz **"Sem áudio: o canal de voz não abriu"**
+  — e o cronômetro continua, porque a ligação existe mesmo e o outro lado está esperando. O
+  silêncio deixa de se disfarçar de normalidade.
+
+  Se o servidor de voz demorar demais para responder, o aviso aparece em até 12 segundos, em
+  vez de "Abrindo o áudio…" para sempre. E se a conexão se restabelecer depois de um soluço
+  de rede, o aviso some sozinho.
+
+  Nada muda para quem não usa chamada de voz.
+
+  Trabalho original da chamada de voz de @eudanielhenrique.
+
+- **O laço rápido do worker volta a montar o admin client** `@react-pdf/hyphenate` é ESM puro e não expunha a condição `require` no seu `exports`. Como o worker roda via `tsx` (CommonJS), qualquer import de `@react-pdf/renderer` (usado pela exportação de dados LGPD) derrubava `carregarDeps()` do drain loop com `ERR_PACKAGE_PATH_NOT_EXPORTED` — e como `register-handlers.ts` registra os 12 handlers do `event_log` num só import chain, isso tirava o laço rápido de TODOS eles, não só do LGPD, caindo pro cron de 1×/min como única rede de segurança.
+
+  Patch (`patches/@react-pdf__hyphenate.patch`) acrescenta a condição `require` ao exports map — Node 22.12+/24 já sabe carregar ESM via `require()` quando o mapa permite. Provado no worker real: o warning "event-log drain OFF" some do log de boot.
+
 ## [1.18.1] — 2026-09-11
 
 ### Corrigido
@@ -3370,7 +3622,8 @@ Primeira versão marcada do DeskcommCRM. O projeto vinha sendo desenvolvido publ
 
 - **Node 22 é obrigatório para desenvolvimento.** A suíte de invariantes instancia o cliente do Supabase, que exige o `WebSocket` global — nativo apenas a partir do Node 22. Isso não afeta quem apenas hospeda: a VPS roda a imagem pronta.
 
-[Não lançado]: https://github.com/welltonsoaress/DeskcommCRM/commits/main
+[Não lançado]: https://github.com/welltonsoaress/DeskcommCRM/compare/v1.19.0...HEAD
+[1.19.0]: https://github.com/welltonsoaress/DeskcommCRM/compare/v1.18.1...v1.19.0
 [1.18.1]: https://github.com/melgarafael/DeskcommCRM/compare/v1.18.0...v1.18.1
 [1.18.0]: https://github.com/melgarafael/DeskcommCRM/compare/v1.17.0...v1.18.0
 [1.17.0]: https://github.com/melgarafael/DeskcommCRM/compare/v1.16.1...v1.17.0
