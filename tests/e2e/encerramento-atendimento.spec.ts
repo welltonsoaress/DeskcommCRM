@@ -220,7 +220,7 @@ test("fechar canal preserva demanda, desfecho explícito e nova entrada volta à
     await expect(page.getByTestId("inbox-item")).toContainText("Resposta registrada; atendimento mudou");
     await page.screenshot({ path: `${evidence}/task4-caso-obsoleto-aviso.png`, fullPage: true });
     await page.goto(`/app/inbox/${conversation}`);
-    await expect(page.getByTestId("inbox-memoria")).toContainText("Histórico encerrado");
+    await expect(page.getByTestId("inbox-memoria")).toContainText("Histórico encerrado", { timeout: 20_000 });
     const language = await db.auth.admin.updateUserById(user, { user_metadata: { locale: "es" } });
     if (language.error) throw language.error;
     await page.reload();

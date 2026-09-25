@@ -89,8 +89,10 @@ jobs:
   cortar-tag:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    timeout-minutes: 80
     permissions:
       contents: read
+      actions: read # consulta os runs de ci, e2e e perf antes de criar a tag
     steps:
       - uses: actions/create-github-app-token@v3
         id: token
@@ -235,6 +237,16 @@ jobs:
             echo "cortar=sim"       >> "$GITHUB_OUTPUT"
             echo "versao=${versao}" >> "$GITHUB_OUTPUT"
           fi
+
+      # Uma release mergeada dispara estes três workflows em paralelo. A tag é
+      # irreversível para quem já atualizou a VPS: ela só nasce quando o MESMO
+      # commit passou em CI, banco/RLS, E2E e build. `imagens-ok` vem depois da
+      # tag, no publish-image, por isso não entra nesta espera.
+      - name: Aguardar validações deste commit
+        if: steps.pendente.outputs.cortar == 'sim'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: pnpm exec tsx scripts/aguardar-checks-release.ts
 
       - name: Criar e empurrar a tag
         if: steps.pendente.outputs.cortar == 'sim'

@@ -1,4 +1,6 @@
 import { dayStartInTz } from "@/lib/agent-engine/pacing/engine";
+import { tagDeIdioma } from "@/lib/i18n/datas";
+import { IDIOMA_PADRAO } from "@/lib/i18n/idiomas";
 import { carregaRadarDeRisco } from "@/lib/leads/radar-de-risco";
 import type { createAdminClient } from "@/lib/supabase/admin";
 
@@ -6,7 +8,7 @@ type Admin = ReturnType<typeof createAdminClient>;
 
 /** Régua explícita: dia local da empresa, eventos novos pelo created_at. */
 export async function managementSnapshot(admin: Admin, organizationId: string, now = new Date()) {
-  const org = await admin.from("organizations").select("name, timezone")
+  const org = await admin.from("organizations").select("display_name, timezone")
     .eq("id", organizationId).maybeSingle();
   if (org.error || !org.data) throw new Error("management_organization_unavailable");
   const timezone = org.data.timezone;
@@ -27,7 +29,7 @@ export async function managementSnapshot(admin: Admin, organizationId: string, n
   if (newLeads.error || openLeads.error || inbox.error || appointments.error)
     throw new Error("management_metrics_unavailable");
   return {
-    organization_name: org.data.name,
+    organization_name: org.data.display_name,
     timezone,
     period_start: start.toISOString(), period_end: next.toISOString(),
     measured_at: now.toISOString(),
@@ -60,7 +62,7 @@ export function managementWeeklyPeriods(now: Date, timezone: string) {
 
 /** Números que já existem no CRM; nenhuma métrica clínica é inferida. */
 export async function managementWeeklyComparison(admin: Admin, organizationId: string, now = new Date()) {
-  const org = await admin.from("organizations").select("name, timezone")
+  const org = await admin.from("organizations").select("display_name, timezone")
     .eq("id", organizationId).maybeSingle();
   if (org.error || !org.data) throw new Error("management_organization_unavailable");
   const { previousStart, currentStart, end } = managementWeeklyPeriods(now, org.data.timezone);
@@ -79,7 +81,7 @@ export async function managementWeeklyComparison(admin: Admin, organizationId: s
   if (leadsNow.error || leadsBefore.error || appointmentsNow.error || appointmentsBefore.error)
     throw new Error("management_weekly_metrics_unavailable");
   return {
-    organization_name: org.data.name, timezone: org.data.timezone,
+    organization_name: org.data.display_name, timezone: org.data.timezone,
     measured_at: now.toISOString(),
     current: { ...interval(currentStart, end), new_leads: leadsNow.count ?? 0,
       confirmed_appointments: appointmentsNow.count ?? 0 },
@@ -90,7 +92,7 @@ export async function managementWeeklyComparison(admin: Admin, organizationId: s
 
 export function formatManagementWeeklyComparison(report: Awaited<ReturnType<typeof managementWeeklyComparison>>): string {
   const interval = (start: string, end: string) => {
-    const fmt = new Intl.DateTimeFormat("pt-BR", { timeZone: report.timezone, day: "2-digit", month: "2-digit" });
+    const fmt = new Intl.DateTimeFormat(tagDeIdioma(IDIOMA_PADRAO), { timeZone: report.timezone, day: "2-digit", month: "2-digit" });
     // end é exclusivo: o último dia incluído começou antes dele.
     return `${fmt.format(new Date(start))} a ${fmt.format(new Date(Date.parse(end) - 12 * 3_600_000))}`;
   };

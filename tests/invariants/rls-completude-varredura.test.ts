@@ -78,6 +78,7 @@ const PROVA_PROPRIA: readonly Excecao[] = [
   { tabela: "management_bindings", razao: "tests/invariants/management-whatsapp-rls.test.ts — admin local vê, admin vizinho e viewer não; FK composta rejeita sessão do vizinho" },
   { tabela: "management_messages", razao: "tests/invariants/management-whatsapp-rls.test.ts — JWT admin local lê/escreve, JWT da outra empresa não lê nem escreve" },
   { tabela: "management_outbox", razao: "tests/invariants/management-whatsapp-rls.test.ts — JWT admin local lê, vizinho e viewer não; anon sem grant" },
+  { tabela: "management_actions", razao: "tests/invariants/management-whatsapp-rls.test.ts — JWT admin local lê, vizinho e viewer não; escrita authenticated vedada" },
   { tabela: "channel_routing_policies", razao: "tests/invariants/channel-routing.test.ts — dois tenants reais, leitura positiva local e negativa cruzada por JWT; FK composta rejeita canal de outra org" },
   { tabela: "channel_routing_responsibles", razao: "tests/invariants/channel-routing.test.ts — JWT do tenant B não lê responsáveis de A; revogação remove vínculo e claim revalida membro ativo" },
   { tabela: "channel_connection_requests", razao: "tests/invariants/channel-routing.test.ts — recibo privado sem SELECT authenticated; reserva admin com MFA e finalização service-only cercada por org e lease" },
