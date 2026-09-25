@@ -17,6 +17,7 @@ import { type NextRequest } from "next/server";
 import { z } from "zod";
 
 import { listaAgendamentos, type AgendamentoListado } from "@/lib/agenda/consulta";
+import { dataYmdValida } from "@/lib/agenda/google/tempo";
 import { fail, ok } from "@/lib/api/wrappers";
 import { logger } from "@/lib/logger";
 
@@ -47,6 +48,7 @@ const listarSchema = z.object({
   dia: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .refine(dataYmdValida, "dia deve existir no calendário")
     .optional(),
   de: z.string().datetime({ offset: true }).optional(),
   ate: z.string().datetime({ offset: true }).optional(),
@@ -76,7 +78,8 @@ const emailDoConvidado = z.preprocess(
 
 const marcarSchema = z.object({
   event_type_id: z.string().uuid(),
-  starts_at: z.string().datetime({ offset: true }),
+  starts_at: z.string().datetime({ offset: true })
+    .refine((value) => dataYmdValida(value.slice(0, 10)), "a data do horário deve existir no calendário"),
   owner_user_id: z.string().uuid().optional(),
   contact_id: z.string().uuid().optional(),
   conversation_id: z.string().uuid().optional(),
@@ -92,7 +95,9 @@ const alterarSchema = z
     outcome_message_id: z.string().uuid().optional(),
     confirmation_next_at: z.string().datetime({offset:true}).optional(),
     /** Remarcar: o novo início. A duração vem do tipo, como na criação. */
-    starts_at: z.string().datetime({ offset: true }).optional(),
+    starts_at: z.string().datetime({ offset: true })
+      .refine((value) => dataYmdValida(value.slice(0, 10)), "a data do horário deve existir no calendário")
+      .optional(),
     /**
      * `rescheduled` NÃO entra aqui: remarcar se pede mandando `starts_at`, e é
      * movimento próprio — não uma situação que se escolhe.

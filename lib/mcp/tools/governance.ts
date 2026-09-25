@@ -130,7 +130,7 @@ export const crmAssignConversation: McpToolDefinition<typeof assignInputShape> =
     await audit({
       action: parsed.reason === "release" ? "conversation.released" : "conversation.transferred",
       actorUserId: a.actorUserId,
-      actorApiTokenId: ctx.apiTokenId,
+      actorApiTokenId: ctx.delegatedUserId ? null : ctx.apiTokenId,
       organizationId: ctx.organizationId,
       resourceType: "conversation",
       resourceId: parsed.conversation_id,
@@ -215,7 +215,7 @@ export const crmManageTags: McpToolDefinition<typeof tagsInputShape> = {
     await audit({
       action: TAG_AUDIT_ACTION[input.target_kind],
       actorUserId: a.actorUserId,
-      actorApiTokenId: ctx.apiTokenId,
+      actorApiTokenId: ctx.delegatedUserId ? null : ctx.apiTokenId,
       organizationId: ctx.organizationId,
       resourceType: input.target_kind,
       resourceId: input.target_id,

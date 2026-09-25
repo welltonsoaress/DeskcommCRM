@@ -2,9 +2,13 @@ import type pg from "pg";
 
 import { dayStartInTz } from "@/lib/agent-engine/pacing/engine";
 import { answerManagementQuestion } from "@/lib/management/consultation";
+import { confirmManagementAction } from "@/lib/management/actions";
 import { loadManagementBinding } from "@/lib/management/ingress";
 import { enqueueManagementDelivery } from "@/lib/management/outbox";
-import { formatManagementSummary, managementSnapshot } from "@/lib/management/report";
+import { managementFailureCode, reportManagementProcessingProblem, resolveManagementProcessingProblem } from "@/lib/management/failure";
+import { logger } from "@/lib/logger";
+import { formatManagementSummary, managementSnapshot,
+  formatManagementWeeklyComparison, managementWeeklyComparison } from "@/lib/management/report";
 import type { createAdminClient } from "@/lib/supabase/admin";
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -31,41 +35,93 @@ async function claimMessage(pool: pg.Pool): Promise<MessageJob | null> {
 
 export async function produceManagementReplies(admin: Admin, pool: pg.Pool, limit = 2): Promise<number> {
   let produced = 0;
-  while (produced < limit) {
+  let processed = 0;
+  while (processed < limit) {
     const msg = await claimMessage(pool);
     if (!msg) break;
-    const binding = await loadManagementBinding(admin, msg.organization_id, msg.channel_session_id);
-    if (!binding?.enabled || !binding.verified_at) {
-      await pool.query("update public.management_messages set kind = 'ignored' where id = $1", [msg.id]);
-      continue;
+    processed++;
+    let stage: "binding" | "membership" | "response" | "outbox" = "binding";
+    try {
+      const binding = await loadManagementBinding(admin, msg.organization_id, msg.channel_session_id);
+      if (!binding?.enabled || !binding.verified_at
+        || new Date(msg.created_at).getTime() < Date.parse(binding.verified_at)) {
+        await pool.query("update public.management_messages set kind = 'ignored', claim_until = null where organization_id = $1 and id = $2",
+          [msg.organization_id, msg.id]);
+        continue;
+      }
+      stage = "membership";
+      const member = await admin.from("user_organizations").select("id")
+        .eq("organization_id", msg.organization_id).eq("user_id", binding.manager_user_id)
+        .in("role", ["manager", "admin"]).is("revoked_at", null)
+        .not("accepted_at", "is", null).maybeSingle();
+      if (member.error) throw new Error("management_reply_membership_unavailable");
+      if (!member.data) {
+        await pool.query("update public.management_messages set kind = 'ignored', claim_until = null where organization_id = $1 and id = $2",
+          [msg.organization_id, msg.id]);
+        continue;
+      }
+      stage = "response";
+      const body = Date.now() - new Date(msg.created_at).getTime() > 2 * 24 * 3_600_000
+        ? "Sua pergunta ficou pendente por mais de dois dias. Para receber informações atuais, envie a pergunta novamente."
+        : msg.kind === "pause"
+        ? "Avisos automáticos pausados. Você ainda pode fazer perguntas aqui. Para reativar avisos, peça a um administrador para ajustar o Assistente de gestão na aplicação."
+        : msg.body?.startsWith("confirm:")
+        ? await confirmManagementAction(admin, {
+            organizationId: msg.organization_id, channelSessionId: msg.channel_session_id,
+            managerUserId: binding.manager_user_id, hash: msg.body,
+          })
+        : await answerManagementQuestion(admin, pool, {
+            organizationId: msg.organization_id, managerUserId: binding.manager_user_id,
+            channelSessionId: msg.channel_session_id, messageId: msg.id,
+            question: msg.body ?? "",
+          });
+      stage = "outbox";
+      const currentBinding = await loadManagementBinding(admin, msg.organization_id, msg.channel_session_id);
+      if (!currentBinding?.enabled || currentBinding.verified_at !== binding.verified_at
+        || currentBinding.manager_user_id !== binding.manager_user_id) {
+        await pool.query("update public.management_messages set kind = 'ignored', claim_until = null where organization_id = $1 and id = $2",
+          [msg.organization_id, msg.id]);
+        continue;
+      }
+      if (await enqueueManagementDelivery(admin, { organizationId: msg.organization_id,
+        channelSessionId: msg.channel_session_id, kind: "consultation",
+        dedupeKey: `reply:${msg.id}`, body,
+        sensitiveBody: body.includes(". Para executar, responda CONFIRMAR "),
+      })) {
+        produced++;
+        await resolveManagementProcessingProblem(admin, msg.organization_id, msg.id);
+      }
+    } catch (error) {
+      // Só a resposta persistida encerra a consulta (claimMessage exclui sua
+      // dedupe_key). Se até a outbox falhar, o lease expira e permite recuperar.
+      const failureCode = managementFailureCode(error, stage);
+      logger.error("[management] processamento da pergunta falhou", {
+        organization_id: msg.organization_id, message_id: msg.id, stage, failure_code: failureCode,
+      });
+      await reportManagementProcessingProblem(admin, {
+        organizationId: msg.organization_id, messageId: msg.id, stage,
+        failureCode,
+      }).catch(() => logger.warn("[management] aviso de processamento indisponível", {
+        organization_id: msg.organization_id, message_id: msg.id,
+      }));
+      // Falha ao enfileirar uma resposta pronta merece nova tentativa dela;
+      // falha de autorização/configuração também precisa de revalidação.
+      if (stage === "response") {
+        const queued = await enqueueManagementDelivery(admin, {
+          organizationId: msg.organization_id, channelSessionId: msg.channel_session_id,
+          kind: "consultation", dedupeKey: `reply:${msg.id}`,
+          body: "Não consegui preparar essa resposta agora. Por favor, tente novamente mais tarde ou confira o histórico do Assistente na aplicação.",
+        }).catch(() => false);
+        if (queued) produced++;
+      }
     }
-    const member = await admin.from("user_organizations").select("id")
-      .eq("organization_id", msg.organization_id).eq("user_id", binding.manager_user_id)
-      .in("role", ["manager", "admin"]).is("revoked_at", null)
-      .not("accepted_at", "is", null).maybeSingle();
-    if (member.error) throw new Error("management_reply_membership_unavailable");
-    if (!member.data) {
-      await pool.query("update public.management_messages set kind = 'ignored' where id = $1", [msg.id]);
-      continue;
-    }
-    const body = Date.now() - new Date(msg.created_at).getTime() > 2 * 24 * 3_600_000
-      ? "Sua pergunta ficou pendente por mais de dois dias. Para receber informações atuais, envie a pergunta novamente."
-      : msg.kind === "pause"
-      ? "Avisos automáticos pausados. Você ainda pode fazer perguntas aqui. Para reativar avisos, peça a um administrador para ajustar o Assistente de gestão na aplicação."
-      : await answerManagementQuestion(admin, pool, {
-          organizationId: msg.organization_id, managerUserId: binding.manager_user_id,
-          channelSessionId: msg.channel_session_id,
-          question: msg.body ?? "",
-        });
-    if (await enqueueManagementDelivery(admin, { organizationId: msg.organization_id,
-      channelSessionId: msg.channel_session_id, kind: "consultation",
-      dedupeKey: `reply:${msg.id}`, body })) produced++;
   }
   return produced;
 }
 
 interface ScheduleRow { organization_id: string; channel_session_id: string;
   daily_enabled: boolean; daily_hour: number; alerts_enabled: boolean;
+  weekly_enabled: boolean; weekly_day: number; weekly_hour: number;
   alert_categories: string[]; max_daily_alerts: number; paused_at: Date | null;
   timezone: string; }
 
@@ -85,20 +141,21 @@ async function alreadyQueued(admin: Admin, organizationId: string, dedupeKey: st
 }
 
 /** Sem backfill de dias antigos: apenas o dia/hora local observados nesta passada. */
-export async function produceManagementSchedule(admin: Admin, pool: pg.Pool, now = new Date()): Promise<{ daily: number; alerts: number }> {
+export async function produceManagementSchedule(admin: Admin, pool: pg.Pool, now = new Date()): Promise<{ daily: number; weekly: number; alerts: number }> {
   const { rows } = await pool.query<ScheduleRow>(`
     select b.organization_id, b.channel_session_id, b.daily_enabled, b.daily_hour,
+           b.weekly_enabled, b.weekly_day, b.weekly_hour,
            b.alerts_enabled, b.alert_categories, b.max_daily_alerts, b.paused_at,
            o.timezone from public.management_bindings b
     join public.organizations o on o.id = b.organization_id
-    where b.enabled and b.verified_at is not null and (b.daily_enabled or b.alerts_enabled)
+    where b.enabled and b.verified_at is not null and (b.daily_enabled or b.weekly_enabled or b.alerts_enabled)
     order by b.organization_id
   `);
-  if (!rows.length) return { daily: 0, alerts: 0 };
+  if (!rows.length) return { daily: 0, weekly: 0, alerts: 0 };
   // Toda empresa é observada neste minuto. A chave única evita repetição de
   // resumo/alerta; um limite fixo aqui perderia empresas na hora do resumo.
   const page = rows;
-  let daily = 0; let alerts = 0;
+  let daily = 0; let weekly = 0; let alerts = 0;
   for (const b of page) {
     if (b.paused_at) continue;
     const local = localParts(now, b.timezone);
@@ -109,6 +166,15 @@ export async function produceManagementSchedule(admin: Admin, pool: pg.Pool, now
       if (await enqueueManagementDelivery(admin, { organizationId: b.organization_id,
         channelSessionId: b.channel_session_id, kind: "daily",
         dedupeKey: dailyKey, body: formatManagementSummary(snap) })) daily++;
+    }
+    const weekday = new Date(`${local.day}T12:00:00Z`).getUTCDay();
+    const weeklyKey = `weekly:${local.day}`;
+    if (b.weekly_enabled && weekday === b.weekly_day && local.hour === b.weekly_hour
+        && !await alreadyQueued(admin, b.organization_id, weeklyKey)) {
+      const report = await managementWeeklyComparison(admin, b.organization_id, now);
+      if (await enqueueManagementDelivery(admin, { organizationId: b.organization_id,
+        channelSessionId: b.channel_session_id, kind: "weekly",
+        dedupeKey: weeklyKey, body: formatManagementWeeklyComparison(report) })) weekly++;
     }
     if (!b.alerts_enabled || b.max_daily_alerts === 0) continue;
     const dayStart = dayStartInTz(now, b.timezone).toISOString();
@@ -143,8 +209,25 @@ export async function produceManagementSchedule(admin: Admin, pool: pg.Pool, now
         kind: "alert", alertSource: "radar_critical",
         dedupeKey: radarKey,
         body: `O Radar encontrou ${snap.radar.critical} negócios críticos na varredura limitada. Abra o Radar para decidir o próximo passo.`,
-      })) alerts++;
+      })) { alerts++; remaining--; }
+    }
+    if (remaining && b.alert_categories.includes("task_overdue")) {
+      const overdue = await pool.query<{ id: string }>(`
+        select t.id from public.crm_tasks t
+        where t.organization_id = $1 and t.status in ('pending', 'in_progress')
+          and t.due_date < $2
+          and not exists (select 1 from public.management_outbox o
+            where o.organization_id = $1 and o.dedupe_key = 'alert:task:' || t.id::text)
+        order by t.due_date desc limit $3`, [b.organization_id, now, remaining]);
+      for (const task of overdue.rows) {
+        if (await enqueueManagementDelivery(admin, { organizationId: b.organization_id,
+          channelSessionId: b.channel_session_id, kind: "alert",
+          alertSource: "task_overdue", referenceId: task.id,
+          dedupeKey: `alert:task:${task.id}`,
+          body: "Há uma tarefa vencida e ainda aberta. Abra Tarefas na aplicação para conferir o responsável e o próximo passo.",
+        })) { alerts++; remaining--; }
+      }
     }
   }
-  return { daily, alerts };
+  return { daily, weekly, alerts };
 }

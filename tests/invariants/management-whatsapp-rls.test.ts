@@ -9,7 +9,7 @@ const ADMIN_B = "0237bbbb-1111-4000-8000-000000000002";
 const VIEWER_A = "0237aaaa-1111-4000-8000-000000000003";
 const SESSION_A = "0237aaaa-2222-4000-8000-000000000001";
 const SESSION_B = "0237bbbb-2222-4000-8000-000000000002";
-const TABLES = ["management_bindings", "management_messages", "management_outbox"] as const;
+const TABLES = ["management_bindings", "management_messages", "management_outbox", "management_actions"] as const;
 
 beforeAll(() => {
   sql(`
@@ -42,6 +42,15 @@ beforeAll(() => {
       values ('${A}', '${SESSION_A}', 'consultation', 'management-inv-a', 'private A'),
              ('${B}', '${SESSION_B}', 'consultation', 'management-inv-b', 'private B')
       on conflict do nothing;
+    insert into public.management_actions
+      (organization_id, channel_session_id, manager_user_id, source_message_id,
+       action, payload, code_hash, expires_at)
+      select m.organization_id, m.channel_session_id,
+        case when m.organization_id = '${A}' then '${ADMIN_A}'::uuid else '${ADMIN_B}'::uuid end,
+        m.id, 'create_task', '{}'::jsonb, 'test-hash', now() + interval '10 minutes'
+      from public.management_messages m
+      where m.external_id in ('management-inv-a', 'management-inv-b')
+      on conflict do nothing;
   `);
 });
 
@@ -73,8 +82,13 @@ describe("0237: dados do gestor pertencem à empresa e ao administrador", () => 
     expect(error).toContain("management_bindings_org_session_fk");
   });
 
-  it("anon não tem acesso às três tabelas", () => {
+  it("anon não tem acesso às tabelas do assistente", () => {
     for (const table of TABLES)
       expect(sql(`select has_table_privilege('anon', 'public.${table}', 'SELECT')`)).toBe("f");
+  });
+
+  it("mesmo admin local não grava comandos pela Data API", () => {
+    expect(sql("select has_table_privilege('authenticated', 'public.management_actions', 'INSERT')")).toBe("f");
+    expect(sql("select has_table_privilege('authenticated', 'public.management_actions', 'UPDATE')")).toBe("f");
   });
 });

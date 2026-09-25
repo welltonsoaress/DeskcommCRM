@@ -11,6 +11,7 @@ import {
   crmGetQueueStatus,
 } from "@/lib/mcp/tools/governance";
 import { getQueueStatus } from "@/lib/routing/queue";
+import { audit } from "@/lib/audit";
 import type { McpContext } from "@/lib/mcp/types";
 
 vi.mock("@/lib/audit", () => ({ audit: vi.fn().mockResolvedValue(undefined) }));
@@ -108,6 +109,17 @@ describe("crm_assign_conversation", () => {
     q.table === "conversations" && q.terminal === "maybeSingle"
       ? { data: { id: CONV, organization_id: ORG, assigned_to_user_id: owner }, error: null }
       : { data: null, error: null };
+
+  it("audita transferência confirmada pelo gestor sem gravar token vazio", async () => {
+    const ctx = makeCtx(convAssigned(null), makeCap());
+    ctx.actor = { type: "user", id: USER_B, role: "manager" };
+    ctx.delegatedUserId = USER_B;
+    ctx.apiTokenId = "";
+    await crmAssignConversation.handler({ conversation_id: CONV, to_user_id: USER_A, reason: "transfer" }, ctx);
+    expect(audit).toHaveBeenLastCalledWith(expect.objectContaining({
+      action: "conversation.transferred", actorUserId: USER_B, actorApiTokenId: null,
+    }));
+  });
 
   it("sucesso: transfere e chama fn_conversation_assign (evento na fn)", async () => {
     const cap = makeCap();

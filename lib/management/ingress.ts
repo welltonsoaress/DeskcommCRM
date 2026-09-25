@@ -6,6 +6,7 @@ import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { audit } from "@/lib/audit";
 import { enqueueManagementDelivery } from "@/lib/management/outbox";
+import { managementConfirmationHash } from "@/lib/management/action-code";
 import { reportUnsignedManagerIngress } from "@/lib/management/failure";
 import type { createAdminClient } from "@/lib/supabase/admin";
 
@@ -18,6 +19,7 @@ export interface ManagementBinding {
   manager_name: string;
   manager_phone: string;
   enabled: boolean;
+  actions_enabled: boolean;
   verified_at: string | null;
   challenge_hash: string | null;
   challenge_expires_at: string | null;
@@ -25,6 +27,9 @@ export interface ManagementBinding {
   paused_at: string | null;
   daily_enabled: boolean;
   daily_hour: number;
+  weekly_enabled: boolean;
+  weekly_day: number;
+  weekly_hour: number;
   alerts_enabled: boolean;
   alert_categories: string[];
   max_daily_alerts: number;
@@ -83,6 +88,10 @@ export async function interceptManagementMessage(admin: Admin, input: Management
 
   const code = (input.body ?? "").trim();
   const pauseRequest = /^(pausar avisos|silenciar avisos)$/i.test(code);
+  const actionConfirmation = binding.verified_at ? managementConfirmationHash({
+    organizationId: input.organizationId, channelSessionId: input.channelSessionId,
+    managerUserId: binding.manager_user_id,
+  }, code) : null;
   const { error: insertError } = await admin.from("management_messages" as never).insert({
     organization_id: input.organizationId,
     channel_session_id: input.channelSessionId,
@@ -91,7 +100,7 @@ export async function interceptManagementMessage(admin: Admin, input: Management
     kind: !binding.verified_at ? "verification" : pauseRequest ? "pause" : binding.enabled ? "consultation" : "ignored",
     body: !binding.verified_at && /^\d{6}$/.test(code)
       ? "[código de confirmação recebido]"
-      : (input.body ?? "").slice(0, 3000),
+      : actionConfirmation ?? (input.body ?? "").slice(0, 3000),
   } as never);
   if (insertError?.code === "23505") return true;
   if (insertError) throw new Error(`management_message_insert:${insertError.code ?? "unknown"}`);

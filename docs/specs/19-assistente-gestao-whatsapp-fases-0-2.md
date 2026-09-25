@@ -1,7 +1,7 @@
 # Assistente de gestão pelo WhatsApp — fases 0 a 2
 
-Estado: implementação inicial na branch `codex/management-whatsapp`. As fases seguintes
-(alterações de CRM, agenda e atendimento por mensagem) dependem de aprovação separada.
+Estado: contrato das fases 0 a 2. As fases 3 a 5 foram aprovadas depois e têm
+implementação e limites próprios em [20-assistente-gestao-whatsapp-fases-3-5.md](20-assistente-gestao-whatsapp-fases-3-5.md).
 
 ## Modelo de cliente
 
@@ -70,6 +70,23 @@ O cron `/api/v1/cron/management-assistant` roda pelo scheduler e exige segredo
 interno. As três tabelas recebem RLS e concessões somente a administradores
 da organização para a Data API; as consultas service role usam filtro explícito
 de `organization_id`.
+
+**CONFIRMADO pelo código — recuperação e diagnóstico:** o cron tenta a entrega
+mesmo se a produção de consultas ou resumos falhar, e devolve erro com as etapas
+que falharam. Cada consulta tem seu próprio tratamento de erro. Uma falha não
+transforma a pergunta em ignorada: sem resposta persistida, o lease de cinco
+minutos expira e ela volta a ser elegível. Se a preparação da resposta falhar,
+o sistema tenta enfileirar uma mensagem de contingência com a mesma chave única.
+Se a fila estiver indisponível, a pergunta continua recuperável. Uma resposta
+normal persistida encerra avisos anteriores de processamento; a contingência
+mantém o aviso, pois não respondeu à pergunta original.
+
+A tela mostra as perguntas sem expor seu texto e distingue processamento,
+nova tentativa, resposta aguardando envio e recibos do canal. Uma contingência
+entregue mantém visível a falha na preparação. O histórico consulta as respostas
+pelos IDs das perguntas, independentemente dos resumos e alertas mais recentes.
+Logs registram etapa e códigos controlados, sem copiar a mensagem do gestor ou
+o texto livre de exceções.
 
 ## Limites aprovados
 

@@ -28,6 +28,7 @@ import {
 } from "@/lib/agenda/consulta";
 import { rotuloDoLocal } from "@/lib/agenda/locais";
 import { diaLocalISO } from "@/lib/agenda/fuso";
+import { dataYmdValida } from "@/lib/agenda/google/tempo";
 import { rotuloLocal } from "@/lib/tempo/agora";
 import {
   alterarAgendamentoHandler,
@@ -167,6 +168,7 @@ const horariosLivresShape = {
   dia: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "dia deve estar em YYYY-MM-DD")
+    .refine(dataYmdValida, "dia deve existir no calendário")
     .optional()
     .describe("dia civil pedido pelo cliente, em YYYY-MM-DD. Use para uma data específica; o servidor aplica o fuso da agenda."),
   owner_user_id: z.string().uuid().optional(),
@@ -426,7 +428,9 @@ async function semDerrubarOTurno<T>(
 
 const marcarShape = {
   event_type_slug: z.string().min(1).describe("o identificador legível do tipo de atendimento"),
-  starts_at: z.string().datetime({ offset: true }).describe("o instante exato do início, vindo de `crm_find_free_slots`"),
+  starts_at: z.string().datetime({ offset: true })
+    .refine((value) => dataYmdValida(value.slice(0, 10)), "a data do horário deve existir no calendário")
+    .describe("o instante exato do início, vindo de `crm_find_free_slots`"),
   contact_id: z.string().uuid().describe("quem vai ser atendido"),
   owner_user_id: z.string().uuid().optional(),
   title: z.string().min(1).max(200).optional(),
@@ -476,7 +480,9 @@ export const crmBookAppointment: McpToolDefinition<typeof marcarShape> = {
 
 const remarcarShape = {
   appointment_id: z.string().uuid(),
-  new_starts_at: z.string().datetime({ offset: true }).describe("o novo início, vindo de `crm_find_free_slots`"),
+  new_starts_at: z.string().datetime({ offset: true })
+    .refine((value) => dataYmdValida(value.slice(0, 10)), "a data do horário deve existir no calendário")
+    .describe("o novo início, vindo de `crm_find_free_slots`"),
   notes: z.string().max(2000).optional(),
 };
 

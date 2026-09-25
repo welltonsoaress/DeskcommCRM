@@ -85,7 +85,7 @@ export const crmRequestHumanHandoff: McpToolDefinition<typeof inputShape> = {
       reason: "requested_human",
       leadId,
       metadata: {
-        source: "ai_agent",
+        source: ctx.actor.type === "ai_agent" ? "ai_agent" : "user",
         urgency: input.urgency,
         original_reason: input.reason,
         ...(ctx.actor.type === "ai_agent" ? { run_id: ctx.actor.id } : {}),

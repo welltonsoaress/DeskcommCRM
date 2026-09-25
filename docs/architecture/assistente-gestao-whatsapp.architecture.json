@@ -14,8 +14,11 @@
     { "id": "webhook", "lane": "app", "col": 1, "type": "route", "label": "Webhook autenticado do comercial" },
     { "id": "ingress", "lane": "app", "col": 2, "type": "lib", "label": "Classificação antes do funil" },
     { "id": "messages", "lane": "db", "col": 3, "type": "database", "label": "management_messages / deduplicação" },
-    { "id": "consult", "lane": "app", "col": 4, "type": "service", "label": "MCP de leitura e modelo com orçamento" },
-    { "id": "schedule", "lane": "app", "col": 4, "type": "service", "label": "Resumo local e alertas selecionados" },
+    { "id": "consult", "lane": "app", "col": 4, "type": "service", "label": "Leitura, comparativos e proposta sem mutação" },
+    { "id": "actions", "lane": "db", "col": 4, "type": "database", "label": "management_actions / confirmação e estado" },
+    { "id": "execute", "lane": "app", "col": 5, "type": "service", "label": "Confirmação e execução revalidada" },
+    { "id": "crm", "lane": "db", "col": 6, "type": "database", "label": "Funil, tarefas e atendimento" },
+    { "id": "schedule", "lane": "app", "col": 4, "type": "service", "label": "Resumos diário/semanal e alertas selecionados" },
     { "id": "outbox", "lane": "db", "col": 5, "type": "database", "label": "management_outbox / desfecho durável" },
     { "id": "delivery", "lane": "app", "col": 5, "type": "service", "label": "Releitura e adaptador do comercial" },
     { "id": "gestor", "lane": "pessoas", "col": 5, "type": "ui", "label": "WhatsApp do gestor" },
@@ -38,6 +41,16 @@
     { "id": "e14", "from": "webhook", "to": "outbox", "label": "recibo assinado" },
     { "id": "e15", "from": "outbox", "to": "central", "label": "falha ou incerteza" },
     { "id": "e16", "from": "central", "to": "config", "label": "revisão e tentativa segura" },
-    { "id": "e17", "from": "delivery", "to": "outbox", "label": "estado aceito ou incerto" }
+    { "id": "e17", "from": "delivery", "to": "outbox", "label": "estado aceito ou incerto" },
+    { "id": "e18", "from": "consult", "to": "central", "label": "falha visível; resposta normal encerra aviso" },
+    { "id": "e19", "from": "messages", "to": "config", "label": "perguntas pendentes e em recuperação" },
+    { "id": "e20", "from": "outbox", "to": "config", "label": "respostas correlacionadas e recibos" },
+    { "id": "e21", "from": "consult", "to": "actions", "label": "proposta com código, sem alteração" },
+    { "id": "e22", "from": "messages", "to": "execute", "label": "HMAC da confirmação" },
+    { "id": "e23", "from": "actions", "to": "execute", "label": "claim único e prazo" },
+    { "id": "e24", "from": "execute", "to": "crm", "label": "revalidar e executar uma vez" },
+    { "id": "e25", "from": "execute", "to": "outbox", "label": "resultado ou incerteza" },
+    { "id": "e26", "from": "actions", "to": "central", "label": "incerteza exige conferência" },
+    { "id": "e27", "from": "actions", "to": "config", "label": "estado visível ao admin" }
   ]
 }

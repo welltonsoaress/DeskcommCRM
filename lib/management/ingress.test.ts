@@ -90,4 +90,29 @@ describe("audiência gerencial antes do funil", () => {
       body: "[código de confirmação recebido]", kind: "verification",
     }));
   });
+
+  it("persiste apenas o HMAC do código de um comando, sem executar alteração no ingresso", async () => {
+    const saved = vi.fn(async () => ({ error: null }));
+    const from = vi.fn((table: string) => {
+      const query = {
+        select: () => query, eq: () => query, in: () => query,
+        is: () => query, not: () => query,
+        maybeSingle: async () => ({ data: table === "management_bindings" ? {
+          organization_id: "org-a", channel_session_id: "session-a",
+          manager_phone: "+5511999999999", manager_user_id: "manager-a",
+          verified_at: "2026-09-24T12:00:00Z", enabled: true, actions_enabled: true,
+        } : { id: "member-a" }, error: null }),
+      };
+      return { ...query, insert: saved };
+    });
+    expect(await interceptManagementMessage({ from } as never, {
+      organizationId: "org-a", channelSessionId: "session-a",
+      phone: "+5511999999999", externalId: "incoming-action-code",
+      body: "CONFIRMAR 123456", direction: "inbound", authenticated: true,
+    })).toBe(true);
+    expect(saved).toHaveBeenCalledWith(expect.objectContaining({
+      kind: "consultation", body: expect.stringMatching(/^confirm:[0-9a-f]{64}$/),
+    }));
+    expect(JSON.stringify(saved.mock.calls)).not.toContain("123456");
+  });
 });

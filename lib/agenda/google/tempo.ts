@@ -64,6 +64,19 @@ import { fusoValido } from "@/lib/tempo/fusos";
 /** `AAAA-MM-DD`, o formato que o Google usa em evento de dia inteiro. */
 const SO_DATA = /^(\d{4})-(\d{2})-(\d{2})$/;
 
+/** Confirma que `AAAA-MM-DD` existe no calendário sem a normalização de Date.UTC. */
+export function dataYmdValida(dataYmd: string): boolean {
+  const casou = SO_DATA.exec(dataYmd.trim());
+  if (!casou) return false;
+  const ano = Number(casou[1]);
+  const mes = Number(casou[2]);
+  const dia = Number(casou[3]);
+  const conferencia = new Date(Date.UTC(ano, mes - 1, dia));
+  return conferencia.getUTCFullYear() === ano
+    && conferencia.getUTCMonth() === mes - 1
+    && conferencia.getUTCDate() === dia;
+}
+
 /**
  * O primeiro instante do dia `AAAA-MM-DD` naquele fuso.
  *
@@ -72,25 +85,13 @@ const SO_DATA = /^(\d{4})-(\d{2})-(\d{2})$/;
  */
 export function primeiroInstanteDoDia(dataYmd: string, fuso: string): Date | null {
   const casou = SO_DATA.exec(dataYmd.trim());
-  if (!casou) return null;
+  if (!casou || !dataYmdValida(dataYmd)) return null;
   const [, anoTexto, mesTexto, diaTexto] = casou;
   if (!anoTexto || !mesTexto || !diaTexto) return null;
 
   const ano = Number(anoTexto);
   const mes = Number(mesTexto);
   const dia = Number(diaTexto);
-
-  // Data que não existe no calendário: `Date.UTC(2026, 1, 31)` devolve 3 de
-  // março sem reclamar, e o dia ocupado seria outro. Só passa quando a volta
-  // bate com o que veio escrito.
-  const conferencia = new Date(Date.UTC(ano, mes - 1, dia));
-  if (
-    conferencia.getUTCFullYear() !== ano ||
-    conferencia.getUTCMonth() !== mes - 1 ||
-    conferencia.getUTCDate() !== dia
-  ) {
-    return null;
-  }
 
   // `instanteDe` assume fuso válido — o `Intl` lança num fuso que não existe,
   // e o acento que um hispanofalante escreve é o caso real (ver o cabeçalho de

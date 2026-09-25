@@ -9,6 +9,7 @@ import { canonicalPhoneBR } from "@/lib/channels/phone-variants";
 import { PROVIDERS_DE_MENSAGEM } from "@/lib/channels";
 import { requireSupportWrite } from "@/lib/impersonate/support";
 import { loadManagementBinding } from "@/lib/management/ingress";
+import { managementInboundState } from "@/lib/management/history";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -19,10 +20,14 @@ const patchSchema = z.object({
   manager_name: z.string().trim().min(1).max(120),
   manager_phone: z.string().trim().min(8).max(32),
   enabled: z.boolean().default(false),
+  actions_enabled: z.boolean().default(false),
   daily_enabled: z.boolean().default(false),
   daily_hour: z.number().int().min(0).max(23).default(9),
+  weekly_enabled: z.boolean().default(false),
+  weekly_day: z.number().int().min(0).max(6).default(1),
+  weekly_hour: z.number().int().min(0).max(23).default(9),
   alerts_enabled: z.boolean().default(false),
-  alert_categories: z.array(z.enum(["central_critical", "radar_critical"])).max(2).default([]),
+  alert_categories: z.array(z.enum(["central_critical", "radar_critical", "task_overdue"])).max(3).default([]),
   max_daily_alerts: z.number().int().min(0).max(20).default(3),
   resume_alerts: z.boolean().default(false),
 });
@@ -37,10 +42,16 @@ export async function GET(): Promise<Response> {
   }
   const admin = createAdminClient();
   const orgId = auth.org.orgId;
-  const [binding, history, channels, memberships] = await Promise.all([
-    admin.from("management_bindings" as never).select("organization_id, channel_session_id, manager_user_id, manager_name, manager_phone, enabled, verified_at, daily_enabled, daily_hour, alerts_enabled, alert_categories, max_daily_alerts, paused_at, challenge_expires_at")
+  const [binding, history, incoming, actions, channels, memberships] = await Promise.all([
+    admin.from("management_bindings" as never).select("organization_id, channel_session_id, manager_user_id, manager_name, manager_phone, enabled, actions_enabled, verified_at, daily_enabled, daily_hour, weekly_enabled, weekly_day, weekly_hour, alerts_enabled, alert_categories, max_daily_alerts, paused_at, challenge_expires_at")
       .eq("organization_id", orgId).maybeSingle(),
-    admin.from("management_outbox" as never).select("id, kind, status, error_code, delivered_at, read_at, created_at, updated_at")
+    admin.from("management_outbox" as never).select("id, kind, status, error_code, dedupe_key, delivered_at, read_at, created_at, updated_at")
+      .eq("organization_id", orgId).order("created_at", { ascending: false }).limit(30),
+    admin.from("management_messages" as never).select("id, kind, claim_until, created_at")
+      .eq("organization_id", orgId).eq("direction", "inbound")
+      .in("kind", ["consultation", "pause", "ignored"])
+      .order("created_at", { ascending: false }).limit(30),
+    admin.from("management_actions" as never).select("id, action, status, error_code, created_at")
       .eq("organization_id", orgId).order("created_at", { ascending: false }).limit(30),
     admin.from("channel_sessions").select("id, display_name, phone_number, status")
       .eq("organization_id", orgId).is("archived_at", null)
@@ -49,15 +60,40 @@ export async function GET(): Promise<Response> {
       .eq("organization_id", orgId).is("revoked_at", null)
       .not("accepted_at", "is", null),
   ]);
-  if (binding.error || history.error || channels.error || memberships.error)
+  if (binding.error || history.error || incoming.error || actions.error || channels.error || memberships.error)
     return fail("internal_error", "Não foi possível ler a gestão.", 500, { requestId });
+  const incomingRows = (incoming.data ?? []) as { id: string; kind: string; claim_until: string | null; created_at: string }[];
+  const inboxFailures = incomingRows.length
+    ? await admin.from("agent_inbox_items").select("ref_id")
+      .eq("organization_id", orgId).eq("ref_kind", "management_message")
+      .in("status", ["open", "ack"])
+      .in("ref_id", incomingRows.map((row) => row.id))
+    : { data: [], error: null };
+  if (inboxFailures.error) return fail("internal_error", "Não foi possível ler as pendências da gestão.", 500, { requestId });
+  const replies = incomingRows.length
+    ? await admin.from("management_outbox" as never)
+      .select("id, kind, status, error_code, dedupe_key, delivered_at, read_at, created_at, updated_at")
+      .eq("organization_id", orgId)
+      .in("dedupe_key", incomingRows.map((row) => `reply:${row.id}`))
+    : { data: [], error: null };
+  if (replies.error) return fail("internal_error", "Não foi possível ler as respostas do Assistente.", 500, { requestId });
+  const failures = new Set((inboxFailures.data ?? []).map((row) => row.ref_id));
+  const replyRows = (replies.data ?? []) as { id: string; kind: string; status: string; error_code: string | null;
+    dedupe_key: string; delivered_at: string | null; read_at: string | null; created_at: string; updated_at: string }[];
+  const byDedupe = new Map(replyRows.map((row) => [row.dedupe_key, row]));
+  const inboundHistory = incomingRows.map((row) => {
+    const state = managementInboundState({ kind: row.kind, claim_until: row.claim_until,
+      reply: byDedupe.get(`reply:${row.id}`) ?? null, processingFailure: failures.has(row.id) });
+    return { id: row.id, kind: row.kind, created_at: row.created_at, ...state };
+  });
   const members = await Promise.all((memberships.data ?? []).filter((m) => ["admin", "manager"].includes(m.role))
     .map(async (m) => {
       const { data } = await admin.auth.admin.getUserById(m.user_id);
       return { ...m, full_name: typeof data?.user?.user_metadata?.full_name === "string"
         ? data.user.user_metadata.full_name : null, email: data?.user?.email ?? null };
     }));
-  return ok({ binding: binding.data, history: history.data ?? [],
+  return ok({ binding: binding.data, history: history.data ?? [], inbound_history: inboundHistory,
+    actions: actions.data ?? [],
     sessions: channels.data ?? [], members }, { requestId });
 }
 
@@ -103,12 +139,16 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     manager_name: input.manager_name,
     manager_phone: phone,
     enabled: input.enabled && !changed,
+    actions_enabled: input.actions_enabled && input.enabled && !changed,
     verified_at: changed ? null : previous?.verified_at,
     challenge_hash: changed ? null : previous?.challenge_hash,
     challenge_expires_at: changed ? null : previous?.challenge_expires_at,
     challenge_attempts: changed ? 0 : previous?.challenge_attempts ?? 0,
     daily_enabled: input.daily_enabled,
     daily_hour: input.daily_hour,
+    weekly_enabled: input.weekly_enabled,
+    weekly_day: input.weekly_day,
+    weekly_hour: input.weekly_hour,
     alerts_enabled: input.alerts_enabled,
     alert_categories: input.alert_categories,
     max_daily_alerts: input.max_daily_alerts,
@@ -120,9 +160,15 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     await admin.from("management_outbox" as never).update({ status: "cancelled" } as never)
       .eq("organization_id", orgId).eq("status", "pending");
   }
+  if (changed || !input.enabled || !input.actions_enabled) {
+    await admin.from("management_actions" as never).update({ status: "cancelled", error_code: "binding_changed" } as never)
+      .eq("organization_id", orgId).eq("status", "pending");
+  }
   await audit({ action: "management.binding_updated", actorUserId: auth.user.id,
     organizationId: orgId, resourceType: "management_binding", resourceId: orgId,
-    requestId, metadata: { changed, enabled: input.enabled, daily_enabled: input.daily_enabled, alerts_enabled: input.alerts_enabled } });
+    requestId, metadata: { changed, enabled: input.enabled, actions_enabled: input.actions_enabled,
+      daily_enabled: input.daily_enabled, weekly_enabled: input.weekly_enabled,
+      alerts_enabled: input.alerts_enabled } });
   const current = await loadManagementBinding(admin, orgId, input.channel_session_id);
   return ok({ enabled: current?.enabled ?? false, verified: !!current?.verified_at }, { requestId });
 }

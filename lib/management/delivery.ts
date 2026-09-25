@@ -7,6 +7,7 @@ import { capabilitiesOf, CHANNEL_SESSION_REF_COLUMNS, getAdapter, resolveSession
 import { logger } from "@/lib/logger";
 import { reportManagementDeliveryProblem } from "@/lib/management/failure";
 import { openVerificationBody } from "@/lib/management/challenge-envelope";
+import { managementActionCodeHash } from "@/lib/management/action-code";
 import { loadManagementBinding } from "@/lib/management/ingress";
 import { managementSnapshot } from "@/lib/management/report";
 import type { createAdminClient } from "@/lib/supabase/admin";
@@ -14,8 +15,9 @@ import type { createAdminClient } from "@/lib/supabase/admin";
 type Admin = ReturnType<typeof createAdminClient>;
 
 interface OutboxRow {
-  id: string; organization_id: string; channel_session_id: string;
-  kind: "verification" | "consultation" | "daily" | "alert";
+  id: string; organization_id: string; channel_session_id: string; dedupe_key: string;
+  body_encrypted: boolean;
+  kind: "verification" | "consultation" | "daily" | "weekly" | "alert";
   body: string; verification_hash: string | null;
   alert_source: string | null; reference_id: string | null;
 }
@@ -31,7 +33,7 @@ async function claim(pool: pg.Pool): Promise<OutboxRow | null> {
        set status = 'sending', attempt_count = attempt_count + 1,
            lease_until = now() + interval '3 minutes'
       from picked where o.id = picked.id
-    returning o.id, o.organization_id, o.channel_session_id, o.kind, o.body,
+    returning o.id, o.organization_id, o.channel_session_id, o.dedupe_key, o.kind, o.body, o.body_encrypted,
               o.verification_hash, o.alert_source, o.reference_id
   `);
   return rows[0] ?? null;
@@ -65,8 +67,54 @@ async function sendClaim(admin: Admin, pool: pg.Pool, row: OutboxRow): Promise<v
     const binding = await loadManagementBinding(admin, row.organization_id, row.channel_session_id);
     if (!binding || (row.kind === "verification"
       ? binding.verified_at || !row.verification_hash || binding.challenge_hash !== row.verification_hash
-      : !binding.enabled || !binding.verified_at || (["daily", "alert"].includes(row.kind) && binding.paused_at))) {
+      : !binding.enabled || !binding.verified_at || (["daily", "weekly", "alert"].includes(row.kind) && binding.paused_at)
+        || (row.kind === "daily" && !binding.daily_enabled)
+        || (row.kind === "weekly" && !binding.weekly_enabled))) {
       await setStatus(admin, row, "cancelled", "binding_changed"); return;
+    }
+    if (row.dedupe_key.startsWith("reply:")) {
+      const source = await admin.from("management_messages" as never).select("created_at")
+        .eq("organization_id", row.organization_id).eq("channel_session_id", row.channel_session_id)
+        .eq("id", row.dedupe_key.slice("reply:".length)).maybeSingle();
+      if (source.error) throw new Error("management_delivery_source_unavailable");
+      const createdAt = (source.data as { created_at: string } | null)?.created_at;
+      if (!createdAt || !binding.verified_at || Date.parse(createdAt) < Date.parse(binding.verified_at)) {
+        await setStatus(admin, row, "cancelled", "binding_changed"); return;
+      }
+    }
+    let proposalHash: string | null = null;
+    let proposalExpiresAt: number | null = null;
+    if (row.kind === "consultation" && row.body_encrypted
+      && row.dedupe_key.startsWith("reply:")) {
+      const sourceId = row.dedupe_key.slice("reply:".length);
+      const code = /\bCONFIRMAR (\d{6})\b/.exec(openVerificationBody(row.body))?.[1];
+      if (!code) throw new Error("management_action_code_unavailable");
+      proposalHash = managementActionCodeHash({ organizationId: row.organization_id,
+        channelSessionId: row.channel_session_id, managerUserId: binding.manager_user_id }, code);
+      const proposal = await admin.from("management_actions" as never).select("status, expires_at")
+        .eq("organization_id", row.organization_id).eq("source_message_id", sourceId)
+        .eq("manager_user_id", binding.manager_user_id).eq("channel_session_id", row.channel_session_id)
+        .eq("code_hash", proposalHash).maybeSingle();
+      if (proposal.error) throw new Error("management_action_delivery_unavailable");
+      const action = proposal.data as { status: string; expires_at: string } | null;
+      if (!action || !binding.actions_enabled || action.status !== "pending") {
+        await setStatus(admin, row, "cancelled", "binding_changed"); return;
+      }
+      proposalExpiresAt = Date.parse(action.expires_at);
+      if (Date.parse(action.expires_at) <= Date.now()) {
+        const cancelled = await admin.from("management_actions" as never)
+          .update({ status: "cancelled", error_code: "expired" } as never)
+          .eq("organization_id", row.organization_id).eq("source_message_id", sourceId)
+          .eq("status", "pending").eq("code_hash", proposalHash).select("id").maybeSingle();
+        if (cancelled.error || !cancelled.data) throw new Error("management_action_expiry_unavailable");
+        const body = "O comando expirou enquanto aguardava envio. Nenhuma alteração foi executada por esta proposta. Envie o pedido novamente.";
+        const replaced = await admin.from("management_outbox" as never)
+          .update({ body, body_encrypted: false } as never).eq("organization_id", row.organization_id)
+          .eq("id", row.id).eq("status", "sending").select("id").maybeSingle();
+        if (replaced.error || !replaced.data) throw new Error("management_action_expiry_reply_unavailable");
+        row.body = body;
+        row.body_encrypted = false;
+      }
     }
     if (row.kind === "alert") {
       if (!binding.alerts_enabled || !row.alert_source || !binding.alert_categories.includes(row.alert_source)) {
@@ -81,6 +129,12 @@ async function sendClaim(admin: Admin, pool: pg.Pool, row: OutboxRow): Promise<v
       } else if (row.alert_source === "radar_critical") {
         const snap = await managementSnapshot(admin, row.organization_id);
         if (snap.radar.critical === 0) { await setStatus(admin, row, "cancelled", "alert_resolved"); return; }
+      } else if (row.alert_source === "task_overdue") {
+        const task = await admin.from("crm_tasks").select("id")
+          .eq("organization_id", row.organization_id).eq("id", row.reference_id)
+          .in("status", ["pending", "in_progress"]).lt("due_date", new Date().toISOString()).maybeSingle();
+        if (task.error) throw new Error("management_task_alert_unavailable");
+        if (!task.data) { await setStatus(admin, row, "cancelled", "alert_resolved"); return; }
       }
     }
     const [member, session] = await Promise.all([
@@ -152,11 +206,25 @@ async function sendClaim(admin: Admin, pool: pg.Pool, row: OutboxRow): Promise<v
       const current = await loadManagementBinding(admin, row.organization_id, row.channel_session_id);
       if (!current || current.manager_phone !== binding.manager_phone
         || current.manager_user_id !== binding.manager_user_id
+        || current.verified_at !== binding.verified_at
         || (row.kind === "alert" && (!current.alerts_enabled || !current.alert_categories.includes(row.alert_source ?? "")))
+        || (row.kind === "consultation" && row.body_encrypted && !current.actions_enabled)
         || (row.kind === "verification"
           ? current.verified_at || current.challenge_hash !== row.verification_hash
-          : !current.enabled || !current.verified_at || (["daily", "alert"].includes(row.kind) && current.paused_at)))
+          : !current.enabled || !current.verified_at || (["daily", "weekly", "alert"].includes(row.kind) && current.paused_at)
+            || (row.kind === "daily" && !current.daily_enabled)
+            || (row.kind === "weekly" && !current.weekly_enabled)))
         throw new Error("management_binding_changed_before_send");
+      if (row.kind === "consultation" && row.body_encrypted
+        && row.dedupe_key.startsWith("reply:")) {
+        const proposal = await admin.from("management_actions" as never).select("status")
+          .eq("organization_id", row.organization_id)
+          .eq("manager_user_id", current.manager_user_id).eq("channel_session_id", row.channel_session_id)
+          .eq("code_hash", proposalHash).gt("expires_at", new Date().toISOString())
+          .eq("source_message_id", row.dedupe_key.slice("reply:".length)).maybeSingle();
+        if (proposal.error || !proposal.data || (proposal.data as { status: string }).status !== "pending")
+          throw new Error("management_action_changed_before_send");
+      }
       const latestMember = await admin.from("user_organizations").select("id")
         .eq("organization_id", row.organization_id).eq("user_id", current.manager_user_id)
         .in("role", ["manager", "admin"]).is("revoked_at", null)
@@ -169,7 +237,15 @@ async function sendClaim(admin: Admin, pool: pg.Pool, row: OutboxRow): Promise<v
       if (latest.error || latest.data?.status !== "WORKING") throw new Error("management_commercial_changed_before_send");
       transportStarted = true;
     };
-    const body = row.kind === "verification" ? openVerificationBody(row.body) : row.body;
+    let body = row.kind === "verification" || row.body_encrypted
+      ? openVerificationBody(row.body) : row.body;
+    if (row.kind === "consultation" && row.body_encrypted && proposalExpiresAt !== null) {
+      const seconds = Math.max(0, Math.floor((proposalExpiresAt - Date.now()) / 1000));
+      const minutes = Math.floor(seconds / 60);
+      const remaining = seconds >= 60 ? `${minutes} ${minutes === 1 ? "minuto" : "minutos"}`
+        : `${seconds} ${seconds === 1 ? "segundo" : "segundos"}`;
+      body = body.replace(/(CONFIRMAR \d{6}) em até 10 minutos/, `$1 em até ${remaining}`);
+    }
     const { externalId } = await adapter.send({ organizationId: row.organization_id,
       sessionRef: resolveSessionRef(s), to: recipient, kind: "text", body, beforeSend });
     await recordSend(client, row.organization_id, row.channel_session_id);
@@ -181,6 +257,9 @@ async function sendClaim(admin: Admin, pool: pg.Pool, row: OutboxRow): Promise<v
         .eq("challenge_hash", row.verification_hash).select("organization_id").maybeSingle();
       if (expiryError || !current) throw new Error("management_challenge_expiry_unavailable");
       await admin.from("management_outbox" as never).update({ body: "[código de confirmação enviado]" } as never)
+        .eq("organization_id", row.organization_id).eq("id", row.id);
+    } else if (row.body_encrypted) {
+      await admin.from("management_outbox" as never).update({ body: "[código de comando enviado]" } as never)
         .eq("organization_id", row.organization_id).eq("id", row.id);
     }
     if (!externalId) { await setStatus(admin, row, "uncertain", "transport_no_receipt"); return; }

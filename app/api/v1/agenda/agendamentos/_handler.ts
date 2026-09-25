@@ -24,6 +24,7 @@ import type { Json } from "@/lib/database.types";
  * para o modelo, e nenhum dos dois reimplementa a decisão.
  */
 import { horariosLivresDaOrg } from "@/lib/agenda/consulta";
+import { dataYmdValida } from "@/lib/agenda/google/tempo";
 import {
   atividadeDaTransicao,
   autorParaTimeline,
@@ -93,6 +94,9 @@ export async function marcarAgendamentoHandler(
   ctx: HandlerCtx,
   input: MarcarInput,
 ): Promise<Record<string, unknown>> {
+  if (!dataYmdValida(input.starts_at.slice(0, 10)) || !Number.isFinite(Date.parse(input.starts_at))) {
+    throw new ApiError(422, "validation_failed", undefined, ctx.requestId, "A data e o horário precisam ser válidos.");
+  }
   const inicio = new Date(input.starts_at);
 
   const { data: tipo, error: erroTipo } = await supabase
@@ -283,6 +287,9 @@ export async function alterarAgendamentoHandler(
   let transicao: Transicao | null = null;
 
   if (input.starts_at) {
+    if (!dataYmdValida(input.starts_at.slice(0, 10)) || !Number.isFinite(Date.parse(input.starts_at))) {
+      throw new ApiError(422, "validation_failed", undefined, ctx.requestId, "A data e o horário precisam ser válidos.");
+    }
     const novoInicio = new Date(input.starts_at);
     const { data: tipo } = await supabase
       .from("calendar_event_types")
@@ -542,7 +549,7 @@ async function fecharOLaco(
   // move o card de "Agendamento solicitado" pra "Agendado". Um early-return
   // antes disto pularia o mirror no caso que mais importa para ele.
   if (leadId) {
-    await moverLeadParaEtapaDeAgendamento(supabase, {
+    const movimento = await moverLeadParaEtapaDeAgendamento(supabase, {
       organizationId: ctx.organization_id,
       leadId,
       transicao: args.transicao,
@@ -553,7 +560,13 @@ async function fecharOLaco(
         transicao: args.transicao,
         error: err instanceof Error ? err.message : String(err),
       });
+      return { moveu: false, motivo: "indisponivel" as const };
     });
+    // Ausência de etapa é opt-in desativado; conflito com humano respeita a decisão dele.
+    if (!movimento.moveu && ["lead_nao_encontrado", "falha_de_escrita", "indisponivel"]
+      .includes(movimento.motivo)) {
+      await avisarFalhaDeEspelhoDoAgendamento(supabase, ctx.organization_id, args.appointmentId, movimento.motivo);
+    }
   }
 
   if (!args.atividade) return;
@@ -573,7 +586,7 @@ async function fecharOLaco(
     return;
   }
 
-  await supabase.from("crm_lead_links").insert({
+  const { error: erroVinculo } = await supabase.from("crm_lead_links").insert({
     organization_id: ctx.organization_id,
     lead_id: leadId,
     target_kind: ALVO_DE_VINCULO_DO_AGENDAMENTO,
@@ -581,6 +594,13 @@ async function fecharOLaco(
     link_kind: VINCULO_DE_AGENDAMENTO,
     created_by_user_id: ctx.actor.type === "user" ? ctx.actor.id : null,
   });
+  if (erroVinculo && erroVinculo.code !== "23505") {
+    logger.error("[agenda] vínculo do compromisso com o negócio falhou", {
+      organization_id: ctx.organization_id, appointment_id: args.appointmentId,
+      code: erroVinculo.code,
+    });
+    await avisarFalhaDeEspelhoDoAgendamento(supabase, ctx.organization_id, args.appointmentId, "vinculo_falhou");
+  }
 
   await emitLeadActivity(supabase, {
     organizationId: ctx.organization_id,
@@ -595,6 +615,46 @@ async function fecharOLaco(
     // ⚠️ `sync` não existe no CHECK de `actor_kind`; `autorParaTimeline` mapeia.
     actorKind: autorParaTimeline(ctx.actor.type),
   } as never);
+}
+
+/** Mostra na Central quando o compromisso existe, mas o CRM não espelhou o resultado. */
+async function avisarFalhaDeEspelhoDoAgendamento(
+  supabase: SB,
+  organizationId: string,
+  appointmentId: string,
+  motivo: string,
+): Promise<void> {
+  try {
+    const { data: anterior, error: erroLeitura } = await supabase.from("agent_inbox_items")
+      .select("id").eq("organization_id", organizationId)
+      .eq("ref_kind", "appointment_stage_move").eq("ref_id", appointmentId)
+      .in("status", ["open", "ack"]).limit(1);
+    if (erroLeitura) {
+      logger.error("[agenda] aviso de espelho não pôde ser consultado", {
+        organization_id: organizationId, appointment_id: appointmentId, code: erroLeitura.code,
+      });
+      return;
+    }
+    if ((anterior ?? []).length > 0) return;
+    const causa = motivo === "vinculo_falhou"
+      ? "O compromisso foi salvo, mas não pôde ser vinculado ao negócio. Revise o dossiê do negócio."
+      : "O compromisso foi salvo, mas o funil não foi atualizado. Revise a Agenda e o negócio antes de continuar.";
+    const { error } = await supabase.from("agent_inbox_items").insert({
+      organization_id: organizationId, kind: "other", severity: "warn",
+      title: "Agendamento não atualizou o negócio",
+      body: causa,
+      ref_kind: "appointment_stage_move", ref_id: appointmentId,
+    });
+    if (error) logger.error("[agenda] aviso de espelho não entrou na Central", {
+      organization_id: organizationId, appointment_id: appointmentId, code: error.code,
+    });
+  } catch {
+    // O compromisso já existe. Falha no aviso não pode virar erro de criação
+    // e levar o cliente a tentar reservar outra vez.
+    logger.error("[agenda] aviso de espelho indisponível", {
+      organization_id: organizationId, appointment_id: appointmentId, motivo,
+    });
+  }
 }
 
 /**

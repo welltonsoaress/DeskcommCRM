@@ -13,7 +13,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { instanteDaParede, primeiroInstanteDoDia } from "@/lib/agenda/google/tempo";
+import { dataYmdValida, instanteDaParede, primeiroInstanteDoDia } from "@/lib/agenda/google/tempo";
 
 /** Estreita `Date | null` falhando alto — cast em teste esconde justamente o nulo. */
 function naoNulo(i: Date | null): Date {
@@ -145,5 +145,13 @@ describe("primeiroInstanteDoDia", () => {
     // Fuso com acento é o erro real de quem digita — e `Intl` lança nele.
     expect(primeiroInstanteDoDia("2026-09-02", "America/Asunción")).toBeNull();
     expect(primeiroInstanteDoDia("2026-09-02", "Marte/Olympus")).toBeNull();
+  });
+});
+
+describe("dataYmdValida", () => {
+  it("aceita dias do calendário e recusa datas que Date normalmente normalizaria", () => {
+    expect(dataYmdValida("2026-09-24")).toBe(true);
+    expect(dataYmdValida("2026-02-31")).toBe(false);
+    expect(dataYmdValida("2026-13-01")).toBe(false);
   });
 });

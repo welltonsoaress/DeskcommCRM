@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 
 test.use({ locale: "pt-BR" });
 
-test("admin cadastra gestor e comercial; ativação aguarda número confirmado", async ({ page }, testInfo) => {
+test("admin cadastra gestor e comercial; cron processa pedido e mantém resposta enquanto comercial está offline", async ({ page, request }, testInfo) => {
   test.setTimeout(120_000);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw new Error("Somente Supabase local");
@@ -60,4 +60,36 @@ test("admin cadastra gestor e comercial; ativação aguarda número confirmado",
   await page.screenshot({ path: testInfo.outputPath("assistente-mobile.png"), fullPage: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.screenshot({ path: testInfo.outputPath("assistente-desktop.png"), fullPage: true });
+
+  // O teste do código e do WAHA real pertence à homologação. Aqui exercitamos
+  // a persistência, o cron e a fila com a sessão deliberadamente desconectada.
+  expect((await admin.from("management_bindings").update({
+    verified_at: new Date().toISOString(), enabled: true,
+  }).eq("organization_id", orgId)).error).toBeNull();
+  await page.getByRole("button", { name: "Atualizar confirmação e histórico" }).click();
+  await page.getByRole("checkbox", { name: "Permitir comandos confirmados pelo WhatsApp" }).check();
+  await page.getByRole("button", { name: "Salvar configuração" }).click();
+  await expect(page.getByRole("status")).toContainText("Configuração salva.");
+  const commandSetting = await admin.from("management_bindings").select("actions_enabled")
+    .eq("organization_id", orgId).single();
+  expect(commandSetting.data?.actions_enabled).toBe(true);
+  const eventId = `e2e-manager-${suffix}`;
+  expect((await admin.from("management_messages").insert({
+    organization_id: orgId, channel_session_id: channel.data!.id,
+    external_id: eventId, direction: "inbound", kind: "pause", body: "pausar avisos",
+  })).error).toBeNull();
+  const cron = await request.get("/api/v1/cron/management-assistant", {
+    headers: { authorization: `Bearer ${process.env.INTERNAL_CRON_SECRET || process.env.INTERNAL_SECRET}` },
+  });
+  expect(cron.status(), await cron.text()).toBe(200);
+  const inbound = await admin.from("management_messages").select("id")
+    .eq("organization_id", orgId).eq("external_id", eventId).single();
+  expect(inbound.error).toBeNull();
+  const reply = await admin.from("management_outbox").select("status, error_code, body")
+    .eq("organization_id", orgId).eq("dedupe_key", `reply:${inbound.data!.id}`).single();
+  expect(reply.error).toBeNull();
+  expect(reply.data).toMatchObject({ status: "pending", error_code: "commercial_offline" });
+  expect(reply.data!.body).toContain("Avisos automáticos pausados");
+  await page.getByRole("button", { name: "Atualizar confirmação e histórico" }).click();
+  await expect(page.getByText("Comercial desconectado: reconecte o WhatsApp.").first()).toBeVisible();
 });

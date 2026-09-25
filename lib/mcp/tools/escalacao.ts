@@ -195,7 +195,7 @@ export const crmAddCaseNote: McpToolDefinition<typeof notaInputShape> = {
     await audit({
       action: "ai.case_noted_by_agent",
       actorUserId: a.actorUserId,
-      actorApiTokenId: ctx.apiTokenId,
+      actorApiTokenId: ctx.delegatedUserId ? null : ctx.apiTokenId,
       organizationId: ctx.organizationId,
       resourceType: "agent_case",
       resourceId: input.case_id,
@@ -245,7 +245,7 @@ export const crmCloseHumanCase: McpToolDefinition<typeof encerrarInputShape> = {
     await audit({
       action: "ai.case_closed_by_agent",
       actorUserId: a.actorUserId,
-      actorApiTokenId: ctx.apiTokenId,
+      actorApiTokenId: ctx.delegatedUserId ? null : ctx.apiTokenId,
       organizationId: ctx.organizationId,
       resourceType: "agent_case",
       resourceId: input.case_id,
@@ -310,7 +310,7 @@ export const crmResumeAiAttendance: McpToolDefinition<typeof retomarInputShape> 
         organizationId: ctx.organizationId,
         actor: ctx.actor,
         requestId: ctx.requestId,
-        apiTokenId: ctx.apiTokenId,
+        apiTokenId: ctx.delegatedUserId ? null : ctx.apiTokenId,
       },
       { conversationId: input.conversation_id },
     );

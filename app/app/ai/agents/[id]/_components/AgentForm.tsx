@@ -57,6 +57,7 @@ import {
 } from "../_actions";
 
 import {
+  exigeEscopoDeFunilParaPublicar,
   versionCreateSchema,
   agentMcpCreateSchema,
   agentMcpPatchSchema,
@@ -376,7 +377,7 @@ export function AgentForm(props: Props) {
       }
     }
     return errors;
-  }, [form, t]);
+  }, [form, props.provedoresDaInstalacao, t]);
 
   const isValid = Object.keys(validation).length === 0;
 
@@ -385,6 +386,14 @@ export function AgentForm(props: Props) {
     if (!props.draft) return t("Sem rascunho para publicar.");
     if (!isValid) return t("Resolva os erros do formulário.");
     if (dirty) return t("Salve o rascunho antes de publicar.");
+    if (
+      exigeEscopoDeFunilParaPublicar({
+        tool_ids: form.tool_ids,
+        operator_enabled: form.operator_enabled,
+        operator_tool_ids: form.operator_tool_ids,
+        pipeline_ids: form.pipeline_ids,
+      })
+    ) return t("Selecione ao menos um funil para publicar ferramentas que alteram o funil.");
     if (!cred) return t("Escolha a chave de acesso da empresa de inteligência artificial.");
     if (credSt !== "validated")
       return `${t("Credencial")} ${form.provider} ${credSt === "invalid" ? t("inválida") : t("ainda não validada")}.`;
@@ -392,7 +401,8 @@ export function AgentForm(props: Props) {
     if (channelSession.status !== "working" && channelSession.status !== "WORKING")
       return `${t("Número WhatsApp não está conectado (status:")} ${channelSession.status}).`;
     return null;
-  }, [isEdit, props, isValid, dirty, cred, credSt, form.provider, channelSession, t]);
+  }, [isEdit, props, isValid, dirty, cred, credSt, form.provider, form.tool_ids,
+    form.operator_enabled, form.operator_tool_ids, form.pipeline_ids, channelSession, t]);
 
   // ---------------------------------------------------------------------
   // Handlers
@@ -553,6 +563,7 @@ export function AgentForm(props: Props) {
                 variant="default"
                 onClick={() => setConfirmOpen(true)}
                 disabled={disabled || publishBlockReason !== null}
+                aria-describedby={props.draft && publishBlockReason ? "publish-block-reason" : undefined}
               >
                 {publishing
                   ? t("Publicando…")
@@ -564,6 +575,12 @@ export function AgentForm(props: Props) {
           ) : null}
         </div>
       </div>
+
+      {isEdit && props.draft && publishBlockReason ? (
+        <p id="publish-block-reason" role="status" className="text-sm text-muted-foreground">
+          {publishBlockReason}
+        </p>
+      ) : null}
 
       {/*
         NAVEGAÇÃO POR PAPEL (spec 16 §6). Um form só, um save só — os papéis são

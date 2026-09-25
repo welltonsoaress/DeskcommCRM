@@ -486,6 +486,8 @@ export const AUDIT_ACTIONS = [
   "management.binding_updated",
   "management.verification_requested",
   "management.verification_completed",
+  "management.action_proposed",
+  "management.action_completed",
   "management.delivery_retry_requested",
 
   // Chamada de voz WhatsApp (spec 18, migration 0234). Ligá-la vincula um

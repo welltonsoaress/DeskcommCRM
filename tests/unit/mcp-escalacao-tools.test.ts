@@ -22,6 +22,7 @@ import {
   crmResumeAiAttendance,
 } from "@/lib/mcp/tools/escalacao";
 import type { McpContext } from "@/lib/mcp/types";
+import { audit } from "@/lib/audit";
 
 vi.mock("@/lib/audit", () => ({ audit: vi.fn().mockResolvedValue(undefined) }));
 
@@ -375,7 +376,7 @@ describe("crm_close_human_case", () => {
 // ---------------------------------------------------------------------------
 
 describe("crm_resume_ai_attendance", () => {
-  it("devolve o atendimento COM o contexto do que a pessoa fez", async () => {
+  it.each([false, true])("devolve o atendimento com contexto e auditoria válida (delegado=%s)", async (delegado) => {
     const resolve: Resolver = (q) => {
       if (q.tabela === "conversations" && q.terminal === "maybeSingle") {
         return {
@@ -405,9 +406,11 @@ describe("crm_resume_ai_attendance", () => {
       return { data: [] };
     };
 
+    const ctx = ctxDePessoa(resolve);
+    if (delegado) { ctx.delegatedUserId = ANA; ctx.apiTokenId = ""; }
     const res = (await crmResumeAiAttendance.handler(
       { conversation_id: CONV },
-      ctxDePessoa(resolve),
+      ctx,
     )) as {
       resumed: boolean;
       human_continuity: { summary: string; pending_with_customer: string | null };
@@ -416,6 +419,9 @@ describe("crm_resume_ai_attendance", () => {
     expect(res.resumed).toBe(true);
     expect(res.human_continuity.summary).toContain("Pedir o CNPJ para emitir a nota.");
     expect(res.human_continuity.pending_with_customer).toBe("Pedir o CNPJ para emitir a nota.");
+    expect(audit).toHaveBeenLastCalledWith(expect.objectContaining({
+      action: "ai.reactivated_by_agent", actorUserId: ANA, actorApiTokenId: delegado ? null : "tok",
+    }));
   });
 
   it("conversa de outra organização não é encontrada", async () => {

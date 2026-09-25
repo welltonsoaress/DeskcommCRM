@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type * as AgendaConsulta from "@/lib/agenda/consulta";
 
 import { ALVO_DE_VINCULO_DO_AGENDAMENTO, VINCULO_DE_AGENDAMENTO } from "@/lib/agenda/tipos";
 import type { ResultadoDaConsulta } from "@/lib/agenda/consulta";
@@ -80,7 +81,7 @@ vi.mock("@/lib/audit", () => ({
 }));
 
 vi.mock("@/lib/agenda/consulta", async (original) => {
-  const real = await original<typeof import("@/lib/agenda/consulta")>();
+  const real = await original<typeof AgendaConsulta>();
   return { ...real, horariosLivresDaOrg: vi.fn() };
 });
 
@@ -372,6 +373,41 @@ describe("a agenda grava na timeline", () => {
 });
 
 describe("quando a gravação da timeline falha", () => {
+  it("falha no aviso da Central não derruba o agendamento já criado", async () => {
+    banco.erroAoGravar["crm_lead_links"] = "vínculo indisponível";
+    const original = cliente();
+    const db = { ...original, from: (table: string) => {
+      if (table === "agent_inbox_items") throw new Error("conexão indisponível");
+      return original.from(table);
+    } } as SupabaseClient;
+    const criado = await marcarAgendamentoHandler(db, ctx, {
+      event_type_id: TIPO, starts_at: HORARIO, contact_id: CONTATO,
+    });
+    expect(criado.id).toBe(AGENDAMENTO);
+    expect(banco.inserido.calendar_appointments).toHaveLength(1);
+    expect(atividades()).toHaveLength(1);
+  });
+
+  it("funil sem etapa de agendamento não gera alerta de falha: o espelhamento é opcional", async () => {
+    const movement = await import("@/lib/leads/appointment-stage-move");
+    const spy = vi.spyOn(movement, "moverLeadParaEtapaDeAgendamento")
+      .mockResolvedValueOnce({ moveu: false, motivo: "sem_etapa_mapeada" });
+    try {
+      await marcarAgendamentoHandler(cliente(), ctx, {
+        event_type_id: TIPO, starts_at: HORARIO, contact_id: CONTATO,
+      });
+      expect(banco.inserido.agent_inbox_items ?? []).toHaveLength(0);
+    } finally { spy.mockRestore(); }
+  });
+
+  it("recusa uma data impossível antes de consultar a agenda ou gravar", async () => {
+    await expect(marcarAgendamentoHandler(cliente(), ctx, {
+      event_type_id: TIPO, starts_at: "2026-02-31T13:00:00.000Z", contact_id: CONTATO,
+    })).rejects.toThrow();
+    expect(horariosLivresDaOrg).not.toHaveBeenCalled();
+    expect(banco.inserido.calendar_appointments ?? []).toHaveLength(0);
+  });
+
   it("a mutação NÃO cai junto — a linha do agendamento continua nascendo", async () => {
     // Registro é fire-and-forget POR DECISÃO (activity-write-failure.ts): a
     // timeline não pode derrubar a operação que ela descreve.

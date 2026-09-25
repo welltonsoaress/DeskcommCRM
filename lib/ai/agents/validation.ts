@@ -168,6 +168,29 @@ const versionShapeSchema = z
 
 export type VersionInput = z.infer<typeof versionShapeSchema>;
 
+/** Escritas que não podem operar sem escopo explícito de funis. */
+export const FERRAMENTAS_QUE_EXIGEM_ESCOPO_DE_FUNIL = [
+  "crm_create_lead",
+  "crm_update_lead",
+  "crm_move_lead_stage",
+  "crm_close_demand",
+  "crm_propose_reactivation",
+] as const;
+
+export function exigeEscopoDeFunilParaPublicar(input: {
+  tool_ids: readonly string[];
+  operator_enabled: boolean;
+  operator_tool_ids: readonly string[];
+  pipeline_ids: readonly string[];
+}): boolean {
+  if (input.pipeline_ids.length > 0) return false;
+  const ativas = new Set([
+    ...input.tool_ids,
+    ...(input.operator_enabled ? input.operator_tool_ids : []),
+  ]);
+  return FERRAMENTAS_QUE_EXIGEM_ESCOPO_DE_FUNIL.some((id) => ativas.has(id));
+}
+
 export const versionCreateSchema = versionShapeSchema;
 
 /** Edits permitted only on draft versions. All fields optional. */
@@ -228,7 +251,8 @@ export type PublishErrorCode =
   | "channel_session_not_found"
   | "channel_session_offline"
   | "model_not_found"
-  | "tool_id_invalid";
+  | "tool_id_invalid"
+  | "pipeline_scope_required";
 
 export const PUBLISH_ERROR_CODES: ReadonlySet<string> = new Set<PublishErrorCode>([
   "agent_not_found",
@@ -245,4 +269,5 @@ export const PUBLISH_ERROR_CODES: ReadonlySet<string> = new Set<PublishErrorCode
   "channel_session_offline",
   "model_not_found",
   "tool_id_invalid",
+  "pipeline_scope_required",
 ]);

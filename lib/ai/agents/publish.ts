@@ -7,7 +7,11 @@
  */
 import { chaveDePlataforma } from "@/lib/ai/runtime/agent";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { PUBLISH_ERROR_CODES, type PublishErrorCode } from "./validation";
+import {
+  exigeEscopoDeFunilParaPublicar,
+  PUBLISH_ERROR_CODES,
+  type PublishErrorCode,
+} from "./validation";
 
 export interface PublishOk {
   ok: true;
@@ -38,13 +42,21 @@ export async function publishAgentVersion(
 ): Promise<PublishResult> {
   const { data: version, error: readError } = await admin
     .from("ai_agent_versions")
-    .select("provider,credential_id")
+    .select("provider,credential_id,tool_ids,operator_enabled,operator_tool_ids,pipeline_ids")
     .eq("organization_id", params.orgId)
     .eq("agent_id", params.agentId)
     .eq("id", params.versionId)
     .maybeSingle();
   if (readError || !version)
     return { ok: false, code: "version_not_found", message: "version_not_found" };
+  if (exigeEscopoDeFunilParaPublicar({
+    tool_ids: (version.tool_ids ?? []) as string[],
+    operator_enabled: version.operator_enabled === true,
+    operator_tool_ids: (version.operator_tool_ids ?? []) as string[],
+    pipeline_ids: (version.pipeline_ids ?? []) as string[],
+  })) {
+    return { ok: false, code: "pipeline_scope_required", message: "pipeline_scope_required" };
+  }
   const platform = version.credential_id === null;
   if (platform && !chaveDePlataforma(version.provider))
     return { ok: false, code: "credential_missing", message: "credential_missing" };
