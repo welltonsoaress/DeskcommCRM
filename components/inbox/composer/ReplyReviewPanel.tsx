@@ -138,7 +138,10 @@ function ReplyReviewPanelInstance({
   };
   if (!expanded) {
     return (
-      <section className="mb-3 flex items-center justify-between gap-2 rounded-md border bg-muted/30 px-3 py-2">
+      <section
+        className="mb-3 flex items-center justify-between gap-2 rounded-md border bg-muted/30 px-3 py-2"
+        aria-label={t("Assistência do agente")}
+      >
         <p className="truncate text-xs text-muted-foreground">
           {t(draft ? (statuses[draft.status] ?? "Sugestão disponível") : "Assistência do agente")}
         </p>
