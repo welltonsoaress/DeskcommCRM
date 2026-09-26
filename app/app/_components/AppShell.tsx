@@ -214,7 +214,7 @@ export function AppShell({ sidebarCollapsed, children }: AppShellProps) {
         <aside
           role="status"
           aria-live="polite"
-          className="fixed bottom-4 right-4 z-50 w-[min(24rem,calc(100vw-2rem))] rounded-lg border border-red-300 bg-background p-4 shadow-xl"
+          className="pointer-events-none fixed bottom-4 right-4 z-50 w-[min(24rem,calc(100vw-2rem))] rounded-lg border border-red-300 bg-background p-4 shadow-xl"
         >
           <div className="flex items-start gap-3">
             <span className="mt-1 h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-red-600 motion-reduce:animate-none" aria-hidden />
@@ -225,7 +225,7 @@ export function AppShell({ sidebarCollapsed, children }: AppShellProps) {
               </p>
               <Link
                 href="/app/ai/cases"
-                className="mt-3 inline-flex rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+                className="pointer-events-auto mt-3 inline-flex rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
                 onClick={dismissCaseNotice}
               >
                 {t("Abrir casos")}
@@ -236,7 +236,7 @@ export function AppShell({ sidebarCollapsed, children }: AppShellProps) {
               onClick={dismissCaseNotice}
               aria-label={t("Fechar aviso")}
               title={t("Fechar aviso")}
-              className="inline-flex items-center gap-1 rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+              className="pointer-events-auto inline-flex items-center gap-1 rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
             >
               <X size={16} aria-hidden />
               <span className="text-xs">{t("Fechar")}</span>
