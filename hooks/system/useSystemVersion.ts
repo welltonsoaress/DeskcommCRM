@@ -8,6 +8,10 @@ export interface SystemVersion {
   is_owner: boolean;
   latest_version?: string;
   update_available?: boolean;
+  /** As notas da release não têm evidência verificável no repositório próprio. */
+  notes_unavailable?: boolean;
+  /** O agente ainda reporta um repositório/tag/commit que não provam a release própria. */
+  release_source_unverified?: boolean;
   off_release?: boolean;
   /** O host não conseguiu comparar a versão instalada com a última publicada. */
   compare_failed?: boolean;

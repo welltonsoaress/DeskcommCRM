@@ -121,8 +121,9 @@ describe("as cores do desenho", () => {
   it("cada tema tem a sua classe: `dark:` no escuro, nada no claro", () => {
     for (const [papel, classes] of Object.entries(CLASSES_DE_COR)) {
       const chave = papel as keyof typeof CORES_DA_MARCA.claro;
-      expect(classes).toContain(`fill-[${CORES_DA_MARCA.claro[chave]}]`);
-      expect(classes).toContain(`dark:fill-[${CORES_DA_MARCA.escuro[chave]}]`);
+      const tipo = papel === "nome" || papel === "sufixo" ? "stroke" : "fill";
+      expect(classes).toContain(`${tipo}-[${CORES_DA_MARCA.claro[chave]}]`);
+      expect(classes).toContain(`dark:${tipo}-[${CORES_DA_MARCA.escuro[chave]}]`);
     }
   });
 

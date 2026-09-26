@@ -2,7 +2,7 @@
 
 > **Quando em dúvida, consulte aqui antes de implementar.** Cada item tem o "por quê" curto.
 
-Lista canônica do que **não fazer** no DeskcommCRM. Anti-patterns ficam aqui pra preservar identidade visual e evitar convergência ao padrão SaaS genérico.
+Lista canônica do que **não fazer** no Striva Sales. Anti-patterns ficam aqui pra preservar identidade visual e evitar convergência ao padrão SaaS genérico.
 
 ---
 
@@ -23,14 +23,14 @@ Lista canônica do que **não fazer** no DeskcommCRM. Anti-patterns ficam aqui p
 ## 3. ❌ Gradient roxo/azul/rosa em hero ou primary button
 
 **Por quê:** símbolo do "AI SaaS 2024". Datado e clichê. Não combina com soft-tech calmo.
-**✅ Sim:** solid `accent-500` (Sage `#67885d`). Profundidade vem de border + shadow neutro, não gradient.
+**✅ Sim:** solid `accent` (`#7C3AED` no padrão Striva). Profundidade vem de border + shadow neutro, não gradient.
 
 ---
 
 ## 4. ❌ `bg-zinc-900` ou `bg-slate-900` em dark mode
 
 **Por quê:** zinc/slate são cool-gray geométricos. A paleta é warm (greige). Misturar quebra coerência.
-**✅ Sim:** `bg: #161510` (warm dark canônico). Ver `02-palette-sage.md`.
+**✅ Sim:** `bg: #161510` (warm dark canônico). Ver `02-palette-violet.md`.
 
 ---
 
@@ -55,7 +55,7 @@ Lista canônica do que **não fazer** no DeskcommCRM. Anti-patterns ficam aqui p
 
 ---
 
-## 8. ❌ Sage accent como bg de toda a sidebar
+## 8. ❌ Violeta como bg de toda a sidebar
 
 **Por quê:** a sidebar é greige (`surface` ou `surface-elevated`). Accent na sidebar fica saturado e cansa em 8h.
 **✅ Sim:** sidebar `surface`, com hover `accent-soft` em items de nav, active `accent-soft` + text `accent`.
@@ -72,7 +72,7 @@ Lista canônica do que **não fazer** no DeskcommCRM. Anti-patterns ficam aqui p
 ## 10. ❌ `red-500` puro (#ef4444) pra error
 
 **Por quê:** vermelho saturado em UI calma vira alarme. Quebra o tom soft-tech.
-**✅ Sim:** `error: #a94a3c` (light) ou `#c87263` (dark). Saturação ≤ 55%. Ver `02-palette-sage.md`.
+**✅ Sim:** `error: #a94a3c` (light) ou `#c87263` (dark). Saturação ≤ 55%. Ver `02-palette-violet.md`.
 
 ---
 

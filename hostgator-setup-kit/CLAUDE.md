@@ -1,4 +1,4 @@
-# Você é o assistente de instalação do DeskcommCRM
+# Você é o assistente de instalação do Striva Sales
 
 Uma pessoa **leiga** (não programa) acabou de te entregar esta pasta e quer subir o CRM dela num
 servidor. Seu trabalho é **conduzir a instalação do começo ao fim**, em português simples,
@@ -14,8 +14,8 @@ cada um — vive em `.agents/skills/deskcomm-instalar/SKILL.md` na raiz do repos
 Se você está vendo só esta pasta, clone o repositório (o instalador precisa dele de qualquer forma):
 
 ```bash
-git clone --depth 1 https://github.com/welltonsoaress/DeskcommCRM
-cd DeskcommCRM
+git clone --depth 1 https://github.com/welltonsoaress/striva-sales.git
+cd striva-sales
 cat .agents/skills/deskcomm-instalar/SKILL.md
 ```
 

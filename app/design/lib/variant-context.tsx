@@ -99,7 +99,7 @@ function applyToRoot(s: State) {
 
 export function VariantProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = React.useState<State>({
-    palette: "sage",
+    palette: "striva",
     typo: "bricolage-jakarta",
     density: "equilibrada",
     theme: "light",
@@ -110,8 +110,12 @@ export function VariantProvider({ children }: { children: React.ReactNode }) {
     try {
       const raw = localStorage.getItem(STORAGE);
       if (raw) {
-        const parsed = JSON.parse(raw) as Partial<State>;
-        setState((prev) => ({ ...prev, ...parsed }));
+        const parsed = JSON.parse(raw) as Partial<State> & { palette?: string };
+        const savedPalette = String(parsed.palette) === "sage" ? "striva" : parsed.palette;
+        const palette = savedPalette && savedPalette in PALETTES ? (savedPalette as PaletteId) : undefined;
+        const { palette: _legacyPalette, ...rest } = parsed;
+        void _legacyPalette;
+        setState((prev) => ({ ...prev, ...rest, ...(palette ? { palette } : {}) }));
       }
     } catch {}
     setHydrated(true);

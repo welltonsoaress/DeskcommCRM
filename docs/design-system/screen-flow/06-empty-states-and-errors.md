@@ -122,7 +122,7 @@ date: 2026-04-28
 ### B4. 503 — Serviço indisponível — `/503`
 - Ícone: `CloudSlash`
 - Headline: **Estamos com instabilidade agora**
-- Sub-copy: Algumas dependências estão fora do ar. Mensagens novas podem demorar pra aparecer. Acompanhe o status: status.deskcomm.com
+- Sub-copy: Algumas dependências estão fora do ar. Mensagens novas podem demorar pra aparecer. Consulte a página de status configurada para o serviço.
 - Primária: `Tentar novamente em 30s`
 - Secundária: `Ver status` → external link
 

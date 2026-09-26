@@ -26,7 +26,7 @@ JTBD adicionais: enxergar último pedido sem trocar de tela; ver sentiment_score
 
 ## P2 — Super-admin de plataforma (sócio/líder operacional) — **PRIMÁRIA MVP**
 
-Sócio ou líder da operadora BPO. Acessa via `admin.deskcomm.com`. **Não fica no painel passivo** — a maior parte do tempo está na inbox cross-tenant operando como operador, mas com poderes de triagem e supervisão. MFA TOTP obrigatório.
+Sócio ou líder da operadora BPO. Acessa pelo subdomínio administrativo configurado para a instalação. **Não fica no painel passivo** — a maior parte do tempo está na inbox cross-tenant operando como operador, mas com poderes de triagem e supervisão. MFA TOTP obrigatório.
 
 | JTBD | Frustration | Métrica de sucesso |
 |---|---|---|

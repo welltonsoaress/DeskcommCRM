@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 110" role="img" aria-labelledby="title desc">
+  <title id="title">Striva — símbolo</title>
+  <desc id="desc">S geométrico em fita contínua com módulo quadrado destacado.</desc>
+  <path d="M94 8H48C29 8 18 19 18 36c0 15 10 24 28 29l20 6c7 2 10 5 10 10 0 6-5 9-14 9H18v14h45c20 0 31-11 31-28 0-14-8-23-26-29l-20-6c-7-2-10-5-10-10 0-6 4-9 12-9h44Z" fill="#7c3aed" />
+  <rect x="3" y="3" width="12" height="12" rx="3" fill="#a78bfa" />
+</svg>

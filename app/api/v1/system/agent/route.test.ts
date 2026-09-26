@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { DISTRIBUTION_ID, DISTRIBUTION_REPOSITORY, distributionTag } from "@/lib/system/distribution";
 
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 vi.mock("@/lib/env", () => ({ env: { INTERNAL_SECRET: "segredo-de-teste", INTERNAL_CRON_SECRET: "" } }));
@@ -105,6 +106,28 @@ describe("POST /api/v1/system/agent", () => {
       latest_version: "1.1.0",
     });
     expect(lastUpdate("system_version")?.agent_last_seen_at).toBeTruthy();
+  });
+
+  it("heartbeat grava a identidade da distribuição e a release observada", async () => {
+    const { POST } = await import("./route");
+    const res = await POST(req({
+      ...HEARTBEAT,
+      current_distribution_id: DISTRIBUTION_ID,
+      current_release_tag: distributionTag("1.0.0"),
+      current_revision: "0123456789abcdef",
+      latest_release_tag: distributionTag("1.1.0"),
+      latest_release_commit: "abcdef0123456789abcdef0123456789abcdef01",
+      release_repository: DISTRIBUTION_REPOSITORY,
+    }));
+    expect(res.status).toBe(200);
+    expect(lastUpdate("system_version")).toMatchObject({
+      current_distribution_id: DISTRIBUTION_ID,
+      current_release_tag: distributionTag("1.0.0"),
+      current_revision: "0123456789abcdef",
+      latest_release_tag: distributionTag("1.1.0"),
+      latest_release_commit: "abcdef0123456789abcdef0123456789abcdef01",
+      release_repository: DISTRIBUTION_REPOSITORY,
+    });
   });
 
   it("heartbeat responde update_requested=false quando ninguém pediu", async () => {

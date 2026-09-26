@@ -28,12 +28,11 @@ services:
     # Os NEXT_PUBLIC_* reais vêm em RUNTIME (env_file abaixo) — o browser lê via
     # <PublicEnvScript/> e o servidor via lib/env.ts. Não precisa buildar no VPS.
     # Build local (avançado): docker compose -f docker-compose.prod.yml -f docker-compose.build.yml build
-    # `:stable` (última release), não `:latest` (topo da `main`). Quem cai neste
-    # default é quem NÃO tem APP_IMAGE no .env — avaliação, ou um .env que
-    # perdeu a chave. Nenhum desses casos quer código não lançado; quem quiser o
-    # topo da main pede `APP_IMAGE=…:latest` explicitamente.
-    image: ${APP_IMAGE:-ghcr.io/welltonsoaress/deskcommcrm:stable}
-    pull_policy: ${APP_PULL_POLICY:-always}
+    # A imagem padrão é uma tag de release imutável. O install/update grava a
+    # mesma versão nas três imagens e valida o trio antes de tocar no banco.
+    # Quem quiser acompanhar a main precisa escolher esse canal explicitamente.
+    image: ${APP_IMAGE:-ghcr.io/welltonsoaress/striva-sales:1.0.0}
+    pull_policy: ${APP_PULL_POLICY:-missing}
     restart: unless-stopped
     env_file: .env
     depends_on:
@@ -80,20 +79,10 @@ services:
     # que mantém a mudança aditiva — registry fora do ar, ou versão anterior à
     # primeira publicação, caem no comportamento antigo em vez de quebrar.
     #
-    # O default é `:stable` (a última RELEASE), não `:latest`, e a diferença é
-    # concreta para o parque instalado. Numa VPS que atualiza pela primeira vez
-    # depois desta mudança, quem executa é o `update.sh` VELHO — o que está no
-    # disco —, e ele só sabe gravar APP_IMAGE. O `git checkout` da tag já trocou
-    # ESTE arquivo, então worker e scheduler caem no default daqui. Com
-    # `:latest`, esse default seria o TOPO DA MAIN (o canal segue a branch
-    # default): o app pinado numa release e o runtime do agente de
-    # IA rodando código não lançado, sobre o banco da release. `:stable` é a
-    # última release publicada — pareia com o app em vez de correr na frente.
-    image: ${WORKER_IMAGE:-ghcr.io/welltonsoaress/deskcomm-worker:stable}
-    pull_policy: ${WORKER_PULL_POLICY:-always}
-    build:
-      context: .
-      dockerfile: Dockerfile.worker
+    # O default aponta para a mesma release imutável do app. O install/update
+    # mantém os três números alinhados; não acompanha a branch main.
+    image: ${WORKER_IMAGE:-ghcr.io/welltonsoaress/striva-worker:1.0.0}
+    pull_policy: ${WORKER_PULL_POLICY:-missing}
     restart: unless-stopped
     env_file: .env
     environment:
@@ -209,11 +198,8 @@ services:
     # serviço `restart: unless-stopped`, isso significa que o cron do cliente só
     # voltava se a VPS tivesse internet e o mirror do Alpine estivesse de pé,
     # justamente no momento em que a máquina está se recuperando de algo.
-    image: ${SCHEDULER_IMAGE:-ghcr.io/welltonsoaress/deskcomm-scheduler:stable}
-    pull_policy: ${SCHEDULER_PULL_POLICY:-always}
-    build:
-      context: .
-      dockerfile: Dockerfile.scheduler
+    image: ${SCHEDULER_IMAGE:-ghcr.io/welltonsoaress/striva-scheduler:1.0.0}
+    pull_policy: ${SCHEDULER_PULL_POLICY:-missing}
     restart: unless-stopped
     depends_on:
       app:

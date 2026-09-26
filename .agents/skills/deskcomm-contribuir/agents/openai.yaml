@@ -1,5 +1,5 @@
 interface:
-  display_name: "Contribuir para o DeskcommCRM"
+  display_name: "Contribuir para o Striva Sales"
   short_description: "Prepara um PR que passa na triagem de primeira: branch, migration, testes, prova em tela, fragmento"
   default_prompt: "Use a skill deskcomm-contribuir e me conduza até um PR pronto para a triagem."
 policy:

@@ -6,12 +6,18 @@ FROM node:22-alpine
 WORKDIR /app
 
 # Procedência (doutrina de packaging, invariante 2).
-LABEL org.opencontainers.image.source="https://github.com/welltonsoaress/DeskcommCRM" \
+LABEL org.opencontainers.image.source="https://github.com/welltonsoaress/striva-sales" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.title="DeskcommCRM worker"
+      org.opencontainers.image.title="Striva Sales worker"
 
 ARG APP_VERSION=dev
-ENV APP_VERSION=$APP_VERSION
+ARG APP_REVISION=unknown
+ARG APP_RELEASE_TAG=
+ARG APP_DISTRIBUTION_ID=striva-sales
+LABEL org.opencontainers.image.version=$APP_VERSION \
+      org.opencontainers.image.revision=$APP_REVISION \
+      org.opencontainers.image.ref.name=$APP_RELEASE_TAG
+ENV APP_VERSION=$APP_VERSION APP_REVISION=$APP_REVISION APP_RELEASE_TAG=$APP_RELEASE_TAG APP_DISTRIBUTION_ID=$APP_DISTRIBUTION_ID
 # pnpm fixado na versão do lockfile do repo (pnpm 10 bloquearia build scripts).
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 

@@ -2,7 +2,7 @@
 # Backup: dump do banco (Supabase) + snapshot das sessões do WhatsApp.
 # Supabase free NÃO tem backup automático — rode isto num cron diário.
 #
-#   crontab -e →  0 3 * * *  cd /caminho/deskcommcrm && bash hostgator-setup-kit/backup.sh
+#   crontab -e →  0 3 * * *  cd /caminho/striva-sales && bash hostgator-setup-kit/backup.sh
 source "$(dirname "$0")/_common.sh"
 enter_project
 
@@ -28,8 +28,14 @@ docker run --rm -v "${proj}_waha-data:/data:ro" -v "$BACKUP_DIR:/out" alpine:3.2
   && c_grn "✓ sessões WhatsApp salvas" \
   || c_ylw "⚠ não achei o volume waha-data (nome pode variar). Ajuste manualmente se necessário."
 
-# Retenção: mantém os 14 mais recentes de cada tipo.
-step "Limpando backups antigos (mantém 14)"
-ls -1t "$BACKUP_DIR"/db-*.sql.gz 2>/dev/null | tail -n +15 | xargs -r rm -f
-ls -1t "$BACKUP_DIR"/waha-*.tgz 2>/dev/null | tail -n +15 | xargs -r rm -f
+# Retenção normal: mantém os 14 mais recentes de cada tipo. A migração entre
+# distribuições pode ser o único ponto de retorno do operador, então ela pede
+# que o backup não remova históricos que já existiam.
+if [ "${PRESERVAR_BACKUPS_EXISTENTES:-0}" = 1 ]; then
+  step "Retenção preservada durante a migração"
+else
+  step "Limpando backups antigos (mantém 14)"
+  ls -1t "$BACKUP_DIR"/db-*.sql.gz 2>/dev/null | tail -n +15 | xargs -r rm -f
+  ls -1t "$BACKUP_DIR"/waha-*.tgz 2>/dev/null | tail -n +15 | xargs -r rm -f
+fi
 c_grn "✓ backup concluído em $BACKUP_DIR"

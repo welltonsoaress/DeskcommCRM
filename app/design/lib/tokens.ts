@@ -1,8 +1,8 @@
-// Design tokens for DeskcommCRM showcase.
-// "Soft-tech / calmo" — neutros desaturados (greige/warm-gray), accent não-saturado.
+// Design tokens for Striva Sales showcase.
+// "Soft-tech / calmo" — neutros desaturados (greige/warm-gray), violeta moderno.
 // 5-Constraint Rule applied: Shape, Color (exact hex), Typography, Motion, Layout.
 
-export type PaletteId = "sage" | "clay" | "mist" | "plum" | "olive";
+export type PaletteId = "striva" | "clay" | "mist" | "plum" | "olive";
 export type TypoId = "bricolage-jakarta" | "fraunces-manrope" | "atkinson" | "source-plex";
 export type DensityId = "aerada" | "equilibrada" | "compacta";
 export type ThemeId = "light" | "dark";
@@ -38,14 +38,14 @@ export type PaletteDef = {
 // ─── Palettes ──────────────────────────────────────────────────────────────
 
 export const PALETTES: Record<PaletteId, PaletteDef> = {
-  sage: {
-    id: "sage",
-    name: "Sage",
-    description: "Verde-erva desaturado. Calmo, confiável, vegetal.",
+  striva: {
+    id: "striva",
+    name: "Violeta Striva",
+    description: "Violeta moderno, confiante e direto, com neutros quentes.",
     accent: {
-      50: "#f3f6f1", 100: "#e4ebe0", 200: "#c8d6c1", 300: "#a4ba9a",
-      400: "#82a077", 500: "#67885d", 600: "#506d48", 700: "#41573b",
-      800: "#374731", 900: "#2f3c2b", 950: "#171f15",
+      50: "#f5f3ff", 100: "#eae6ff", 200: "#d5ccff", 300: "#bba8ff",
+      400: "#a384ff", 500: "#915fff", 600: "#7c3aed", 700: "#6133b8",
+      800: "#4e2d91", 900: "#412976", 950: "#1f113e",
     },
     neutralLight: {
       50: "#faf9f6", 100: "#f3f1ec", 200: "#e7e3da", 300: "#d2cdbf",

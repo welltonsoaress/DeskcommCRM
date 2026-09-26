@@ -1,6 +1,6 @@
-# ADR-0001 — Packaging e distribuição do DeskcommCRM
+# ADR-0001 — Packaging e distribuição do Striva Sales
 
-- **Status:** aceito
+- **Status:** aceito; D1 foi supersedido para a distribuição Striva em 2026-09-26
 - **Data:** 2026-08-13
 - **Contexto medido em:** `f9abedd0` (`main`)
 - **Lei decorrente:** [`docs/doctrine/packaging.md`](../doctrine/packaging.md)
@@ -15,12 +15,15 @@
 
 ## Contexto
 
-> **Aditivo de 2026-09-17 (fork `welltonsoaress/DeskcommCRM`):** D1 abaixo é a
-> decisão histórica do repositório original, não uma configuração para este
-> fork. Este fork publica suas três imagens em `ghcr.io/welltonsoaress` e aponta
-> novas instalações para esse namespace. A justificativa de preservar o `.env`
-> de instalações existentes continua valendo: uma VPS antiga não migra só
-> porque um arquivo foi alterado no GitHub.
+> **Aditivo de 2026-09-17:** D1 abaixo registra a distribuição do repositório
+> herdado. A decisão foi supersedida em 2026-09-26: o repositório foi renomeado
+> para `welltonsoaress/striva-sales`, passou a usar tags próprias
+> `striva-vX.Y.Z` e imagens `ghcr.io/welltonsoaress/striva-sales`,
+> `striva-worker` e `striva-scheduler`. O procedimento legado não pode
+> ser atualizado por uma release do Striva porque o antigo `update.sh` busca
+> imagens do namespace `ghcr.io/melgarafael`; use o bootstrap documentado no
+> runbook de ativação. A justificativa de preservar o `.env` e volumes das
+> instalações existentes continua valendo.
 
 O DeskcommCRM é distribuído como self-host: a monetização é a venda da VPS com o sistema
 instalado, e a experiência de quem instala **é** o produto. Isso torna o artefato distribuído —
@@ -37,6 +40,10 @@ enxergou o defeito mais caro, que era o motivo real para escrever esta doutrina.
 ## Decisões
 
 ### D1 — O namespace é `ghcr.io/melgarafael/*`. Não migramos para uma org.
+
+> **Decisão histórica, supersedida para releases Striva em 2026-09-26.** O
+> raciocínio abaixo explica as instalações legadas e não deve ser usado para
+> configurar novas instalações ou publicar novas imagens.
 
 **Escolhido porque** é o namespace que o CI já publica (`IMAGE_NAME: ${{ github.repository }}`),
 que o compose já consome, e — decisivo — que está **gravado no `.env` de cada cliente

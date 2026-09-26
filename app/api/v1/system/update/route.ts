@@ -13,7 +13,11 @@ import { audit } from "@/lib/audit";
 import { loadAuthUser } from "@/lib/auth/server";
 import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isRunStale } from "@/lib/system/update-run";
+import {
+  DISTRIBUTION_ID,
+  releaseDaDistribuicaoVerificada,
+} from "@/lib/system/distribution";
+import { isRunStale, updateDisponivel } from "@/lib/system/update-run";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +38,9 @@ export async function POST(_req: NextRequest): Promise<Response> {
   const db = createAdminClient();
   const { data: version, error: versionError } = await db
     .from("system_version")
-    .select("current_version, latest_version")
+    .select(
+      "current_version, latest_version, current_distribution_id, latest_release_tag, latest_release_commit, release_repository, compare_failed",
+    )
     .eq("id", 1)
     .maybeSingle();
 
@@ -49,7 +55,29 @@ export async function POST(_req: NextRequest): Promise<Response> {
   const current = version?.current_version ?? "";
   const latest = version?.latest_version ?? "";
 
-  if (!latest || latest === current) {
+  // A leitura pode ter sido preenchida por um agente antigo ou contaminada
+  // por uma release de outro repositório. A rota de execução é uma segunda
+  // fronteira: nunca cria um run sem prova da origem da release Striva.
+  if (
+    !releaseDaDistribuicaoVerificada({
+      version: latest,
+      repository: version?.release_repository,
+      tag: version?.latest_release_tag,
+      commit: version?.latest_release_commit,
+    })
+  ) {
+    return fail("state_conflict", "A origem da release não foi verificada; o sistema não foi atualizado.", 409);
+  }
+
+  if (
+    !updateDisponivel(
+      current,
+      latest,
+      version?.current_distribution_id,
+      DISTRIBUTION_ID,
+      version?.compare_failed ?? false,
+    )
+  ) {
     return fail("state_conflict", "Você já está na versão mais recente.", 409);
   }
 

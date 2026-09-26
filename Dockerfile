@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
-# DeskcommCRM — imagem de produção self-host (Next.js standalone).
-# Build: docker build --build-arg NEXT_PUBLIC_SUPABASE_URL=... -t deskcomm-app .
+# Striva Sales — imagem de produção self-host (Next.js standalone).
+# Build: docker build --build-arg NEXT_PUBLIC_SUPABASE_URL=... -t striva-sales .
 
 # ---- deps: instala dependências (layer cacheável) ----
 FROM node:22-alpine AS deps
@@ -53,20 +53,29 @@ WORKDIR /app
 # OCI via docker/metadata-action; estes aqui são defesa em profundidade — valem
 # para qualquer build, inclusive o local de docker-compose.build.yml, que não
 # passa pelo metadata-action e sem isto sairia sem origem nenhuma.
-LABEL org.opencontainers.image.source="https://github.com/welltonsoaress/DeskcommCRM" \
+LABEL org.opencontainers.image.source="https://github.com/welltonsoaress/striva-sales" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.title="DeskcommCRM"
+      org.opencontainers.image.title="Striva Sales"
 
 # A versão que /api/v1/health reporta (invariante 7). Precisa vir por ARG: a
 # alternativa anterior era `process.env.npm_package_version`, que é `undefined`
 # sob `CMD ["node","server.js"]` — só existe quando o processo nasce de um
 # `npm`/`pnpm run`. Toda instalação do mundo reportava o fallback "0.1.0".
 ARG APP_VERSION=dev
+ARG APP_REVISION=unknown
+ARG APP_RELEASE_TAG=
+ARG APP_DISTRIBUTION_ID=striva-sales
+LABEL org.opencontainers.image.version=$APP_VERSION \
+      org.opencontainers.image.revision=$APP_REVISION \
+      org.opencontainers.image.ref.name=$APP_RELEASE_TAG
 ENV NODE_ENV=production \
     PORT=3000 \
     HOSTNAME=0.0.0.0 \
     NEXT_TELEMETRY_DISABLED=1 \
-    APP_VERSION=$APP_VERSION
+    APP_VERSION=$APP_VERSION \
+    APP_REVISION=$APP_REVISION \
+    APP_RELEASE_TAG=$APP_RELEASE_TAG \
+    APP_DISTRIBUTION_ID=$APP_DISTRIBUTION_ID
 # ffmpeg: a derivação de vídeo (Onda 3.1) roda no processo do app — o cron
 # event-log-drain executa o media_derive handler, que chama `ffmpeg` via spawn
 # pra extrair áudio+frames. Sem o binário, todo vídeo recebido falha a derivação.

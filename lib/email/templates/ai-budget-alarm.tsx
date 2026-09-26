@@ -5,16 +5,19 @@
  * limpeza do teto de orçamento (0159) por nunca ter tido agendador. Quem avisa o
  * cliente que o gasto passou do ponto escolhido é o item `budget_warning` na
  * Central (`agent_inbox_items`), aberto pelo próprio gate. Este arquivo fica de
- * pé porque o alarme POR E-MAIL continua sendo uma peça desejada — e é a dívida
- * D1 de marca (`tests/unit/branding.test.ts`): ele ainda escreve o nosso nome,
- * o que só passa a importar no dia em que ele voltar a ser enviado.
+ * pé porque o alarme POR E-MAIL continua sendo uma peça desejada — a marca da
+ * instalação/organização precisa chegar resolvida até este template.
  */
+import { DEFAULT_APP_NAME } from "@/lib/branding";
+
 export interface BudgetAlarmEmailOptions {
   pct: number;
   consumedCents: number;
   limitCents: number;
   orgName?: string | null;
   dashboardUrl: string;
+  appName?: string | null;
+  accentHex?: string | null;
 }
 
 const brl = new Intl.NumberFormat("pt-BR", {
@@ -32,7 +35,9 @@ export function buildBudgetAlarmEmail(opts: BudgetAlarmEmailOptions): {
   text: string;
 } {
   const pctStr = `${opts.pct.toFixed(2)}%`;
-  const subject = `Alerta IA: orçamento atingiu ${pctStr} — DeskcommCRM`;
+  const appName = (opts.appName ?? DEFAULT_APP_NAME).replace(/[\r\n]/g, " ").trim() || DEFAULT_APP_NAME;
+  const accentHex = /^#[\da-f]{6}$/i.test(opts.accentHex ?? "") ? opts.accentHex! : "#7C3AED";
+  const subject = `Alerta IA: orçamento atingiu ${pctStr} — ${appName}`;
   const orgLine = opts.orgName
     ? `<p style="margin:0 0 16px;font-size:14px;color:#57534e">Organização: <strong>${escapeHtml(opts.orgName)}</strong></p>`
     : "";
@@ -54,7 +59,7 @@ export function buildBudgetAlarmEmail(opts: BudgetAlarmEmailOptions): {
       conforme a política configurada. Atendimento humano segue normalmente.
     </p>
     <p style="margin:24px 0">
-      <a href="${opts.dashboardUrl}" style="display:inline-block;padding:12px 24px;background:#0ea5e9;color:#ffffff;border-radius:6px;text-decoration:none;font-weight:600">
+      <a href="${opts.dashboardUrl}" style="display:inline-block;padding:12px 24px;background:${accentHex};color:#ffffff;border-radius:6px;text-decoration:none;font-weight:600">
         Ver dashboard de uso
       </a>
     </p>
@@ -62,12 +67,14 @@ export function buildBudgetAlarmEmail(opts: BudgetAlarmEmailOptions): {
       Este alerta é enviado automaticamente uma vez a cada 24h enquanto o
       consumo permanecer acima do limite configurado.
     </p>
+    <p style="margin:20px 0 0;font-size:12px;color:#78716c">${escapeHtml(appName)}</p>
   </div>
 </body>
 </html>`;
 
   const text = [
     `Orçamento mensal de IA atingiu ${pctStr}.`,
+    appName,
     opts.orgName ? `Organização: ${opts.orgName}` : "",
     `Consumo: ${fmt(opts.consumedCents)} de ${fmt(opts.limitCents)}.`,
     "",

@@ -6,13 +6,25 @@ import { apiClient } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/types";
 import { copyToClipboard } from "@/lib/clipboard";
 import { useSystemVersion } from "@/hooks/system/useSystemVersion";
+import { distributionTag } from "@/lib/system/distribution";
 import { markdownParaTextoSimples } from "@/lib/system/changelog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useT } from "@/hooks/i18n/useT";
 
 // Sem `cd <pasta>`: o instalador não fixa o nome da pasta do clone
-// (REPO_DIR é configurável, default "deskcommcrm" minúsculo) — quem tem
+// (REPO_DIR é configurável, default "striva-sales") — quem tem
 // acesso ao servidor já sabe entrar na pasta onde instalou.
 const COMANDO_MANUAL = "bash hostgator-setup-kit/update.sh";
 
@@ -37,7 +49,7 @@ function semV(versao: string | undefined): string {
 function comandoDeVolta(fromVersion: string | undefined): string {
   const anterior = semV(fromVersion);
   return /^\d+\.\d+\.\d+/.test(anterior)
-    ? `bash hostgator-setup-kit/update.sh --to v${anterior} --force`
+    ? `bash hostgator-setup-kit/update.sh --to ${distributionTag(anterior)} --force`
     : "bash hostgator-setup-kit/update.sh --force";
 }
 
@@ -111,10 +123,8 @@ export function UpdatePanel() {
     );
   }
 
-  // As versões de uma falha vêm do RUN, nunca de `current_version`: essa
-  // última é o `git describe` do host, e a troca de código já tinha
-  // acontecido quando o app quebrou — ela nomeia a versão que FALHOU. O run
-  // sabe de onde saiu e para onde tentou ir.
+  // As versões de uma falha vêm do RUN, que registra a origem e o alvo daquela
+  // tentativa; a identidade atual vem do contêiner, separada do checkout.
   const alvo = semV(data.run?.to_version);
   const anterior = semV(data.run?.from_version);
 
@@ -216,6 +226,22 @@ export function UpdatePanel() {
     );
   }
 
+  if (data.release_source_unverified) {
+    return (
+      <Layout titulo={t("Origem das versões ainda não confirmada")}>
+        <p className="text-sm">
+          {t(
+            "O servidor ainda não confirmou o repositório, a tag e o commit da distribuição desta instalação. Por segurança, não vou mostrar versões nem notas dessa origem e não oferecerei uma atualização.",
+          )}
+        </p>
+        <p className="mt-3 text-sm text-muted-foreground">
+          {t("Quando o agente reportar uma release própria verificável, ela aparecerá aqui.")}
+        </p>
+        <Comando comando={COMANDO_MANUAL} />
+      </Layout>
+    );
+  }
+
   // O host disse, com todas as letras, que não conseguiu comparar. Recusar a
   // agir é defensável; afirmar "é a mais recente" sem ter conferido não é — a
   // conta disso é o cliente nunca receber a próxima correção de segurança.
@@ -259,7 +285,7 @@ export function UpdatePanel() {
   //
   // 1. O servidor está À FRENTE da última publicada (existe release, e o
   //    HEAD já a contém). Não é defeito — veio da forma como foi instalado.
-  // 2. Este fork NUNCA teve nenhuma release publicada. Dizer "à frente da
+  // 2. Esta distribuição NUNCA teve nenhuma release publicada. Dizer "à frente da
   //    publicada" aqui afirmaria a existência de algo que não existe.
   //
   // Sem distinguir os dois, a tela de baixo renderizava "Versão  disponível",
@@ -270,7 +296,7 @@ export function UpdatePanel() {
         <Layout titulo={t("Ainda não há nenhuma versão publicada")}>
           <p className="text-sm">
             {t(
-              "Este projeto ainda não tem nenhuma versão publicada para comparar com a sua instalação — normal em um fork novo ou recém-criado a partir do código-fonte.",
+              "Este projeto ainda não tem nenhuma versão publicada para comparar com a sua instalação — isso pode acontecer enquanto a primeira release própria está sendo preparada.",
             )}{" "}
             <strong>{t("Não há nada a atualizar agora")}</strong>,{" "}
             {t("e isso não é um problema.")}
@@ -336,7 +362,13 @@ export function UpdatePanel() {
         <p className="mb-4 text-sm text-muted-foreground">
           {t("Este histórico começa na versão")} {data.notes.sections.at(-1)?.version}{" "}
           {t("e pode não alcançar a que você tem instalada")} ({versao}) —{" "}
-          {t("a última parte pode estar cortada. O texto completo está no arquivo CHANGELOG.md do projeto.")}
+          {t("a última parte pode estar cortada. Consulte o histórico de releases da distribuição.")}
+        </p>
+      )}
+
+      {data.notes_unavailable && (
+        <p className="mb-4 rounded-md border p-3 text-sm text-muted-foreground">
+          {t("As notas desta release não estão disponíveis de forma verificável. Não vou exibir notas de outro projeto.")}
         </p>
       )}
 
@@ -382,12 +414,38 @@ function BotaoAtualizar({
   erro: string | null;
 }) {
   const t = useT();
+  const [confirmar, setConfirmar] = useState(false);
   return (
     <>
       <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={mutate} disabled={isPending}>
-          {isPending ? t("Iniciando…") : t("Atualizar agora")}
-        </Button>
+        <AlertDialog open={confirmar} onOpenChange={setConfirmar}>
+          <AlertDialogTrigger asChild>
+            <Button disabled={isPending}>
+              {isPending ? t("Iniciando…") : t("Atualizar agora")}
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t("Atualizar todas as organizações desta instalação?")}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t("A atualização reinicia o sistema compartilhado por todas as organizações neste servidor. Vou criar um backup antes, mas escolha um horário adequado para a operação.")}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t("Cancelar")}</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={isPending}
+                onClick={(event) => {
+                  event.preventDefault();
+                  setConfirmar(false);
+                  mutate();
+                }}
+              >
+                {isPending ? t("Iniciando…") : t("Confirmar atualização")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
         <span className="text-sm text-muted-foreground">
           {t(
             "O sistema sai do ar por cerca de 2 minutos e volta sozinho. Faço uma cópia de segurança dos seus dados antes.",

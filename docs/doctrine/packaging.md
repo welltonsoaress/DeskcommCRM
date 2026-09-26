@@ -1,6 +1,6 @@
 # Doutrina de Packaging e Distribuição
 
-> Lei de arquitetura para tudo que roda no disco de quem instalou o DeskcommCRM: imagens,
+> Lei de arquitetura para tudo que roda no disco de quem instalou o Striva Sales: imagens,
 > composes, tags e o kit de instalação. Complementa [`sistema-vivo.md`](./sistema-vivo.md) —
 > não é aspiração, é critério de aceite. Amarrada ao item 15 do Definition of Done
 > (`CLAUDE.md`).
@@ -15,7 +15,17 @@ Ao mudar um invariante aqui, atualize os dois na mesma sessão.
 | saber se sua mudança precisa virar imagem publicada | §Os 8 invariantes, nº 1 |
 | escolher a tag que uma instalação de cliente consome | §Política de canais |
 | lançar uma versão | §Checklist de release |
-| entender a decisão original de namespace e a migração deste fork | o ADR |
+| entender a decisão original de namespace e a migração para a distribuição Striva | o ADR |
+
+### Contrato da distribuição Striva
+
+O contrato atual é definido em `hostgator-setup-kit/distribution.env`: repositório
+`welltonsoaress/striva-sales`, releases estáveis `striva-vX.Y.Z` e imagens
+`ghcr.io/welltonsoaress/striva-sales`, `striva-worker` e
+`striva-scheduler`. O atualizador consulta exclusivamente essa origem.
+Instalações antigas que ainda apontam para `ghcr.io/melgarafael` precisam passar
+pela ponte descrita em `docs/runbooks/ativar-packaging.md`; não publique no
+namespace upstream para contornar essa etapa.
 
 ---
 
@@ -39,7 +49,7 @@ Se a resposta for "o cliente", a peça está errada e vira imagem publicada.
 
 | | **Nosso** | **Upstream** |
 |---|---|---|
-| Exemplos | `deskcommcrm`, `deskcomm-worker` | WAHA, Redis, Caddy, `serverless-redis-http`, `postgres` |
+| Exemplos | `striva-sales`, `striva-worker` | WAHA, Redis, Caddy, `serverless-redis-http`, `postgres` |
 | Quem constrói | nosso CI, uma vez por versão | terceiro, fora do nosso controle |
 | O que fazemos | publicamos com procedência e versão | **referenciamos com tag pinada** (ver ressalva) |
 | O que **nunca** fazemos | publicar da máquina de um dev | republicar, embalar ou copiar |
@@ -73,7 +83,7 @@ worker:
 
 # CERTO — imagem publicada; o build fica ao lado, como escape
 worker:
-  image: ${WORKER_IMAGE:-ghcr.io/welltonsoaress/deskcomm-worker:stable}
+  image: ${WORKER_IMAGE:-ghcr.io/welltonsoaress/striva-worker:1.0.0}
   build: { context: ., dockerfile: Dockerfile.worker }
 ```
 
@@ -104,25 +114,16 @@ OCI — no mínimo `source`, `revision`, `version`, `licenses` — e é constru�
   das três imagens não constrói. Ele existe porque a matriz gera um nome de check por imagem,
   e exigir os três pelo nome faria uma quarta imagem, um dia, escapar do gate em silêncio.
 
-  > **No repositório original**, `imagens-ok` era required check da `main`, medido em 2026-08-14:
+  > **A branch protection do repositório Striva ainda não foi medida.** Depois que os
+  > workflows da distribuição rodarem, confira:
   >
   > ```console
-  > $ gh api repos/melgarafael/DeskcommCRM/branches/main/protection \
+  > $ gh api repos/welltonsoaress/striva-sales/branches/main/protection \
   >     --jq '.required_status_checks.contexts|join(", ")'
-  > verify, build-and-size, invariants, e2e, imagens-ok
   > ```
   >
-  > No fork `welltonsoaress/DeskcommCRM`, configure a proteção da `main` separadamente;
-  > a medição acima não prova que ela está ativa aqui. Confira com
-  > `gh api repos/welltonsoaress/DeskcommCRM/branches/main/protection`.
-  >
-  > Este parágrafo já disse as duas coisas erradas, em ordem: primeiro afirmou no presente
-  > que o check era obrigatório quando não era, depois — corrigido — afirmou que "ainda não
-  > está" e **continuou afirmando isso depois da ativação**, que aconteceu no mesmo dia. O
-  > segundo erro é o mais instrutivo: o texto foi escrito *sabendo* que a ativação era o
-  > passo seguinte, e ninguém volta para trocar um "ainda não" por um "já". **Nota de
-  > pendência é dívida com data de vencimento e sem cobrador.** Quem ler qualquer uma das
-  > duas versões mede contra a régua errada — reconfira na fonte, com o comando acima.
+  > Não afirme que esses checks estão ativos se a consulta falhar ou não os listar.
+  > Configure e confira a proteção antes de publicar releases.
   >
   > O roteiro da ativação, com as verificações de cada passo, está em
   > [`../runbooks/ativar-packaging.md`](../runbooks/ativar-packaging.md).
@@ -328,13 +329,12 @@ mesma VPS **recusa** mexer, e diz por quê.
 
 ## Política de canais
 
-| Tag | Quem consome | Move? | `pull_policy` | O que significa |
+| Tag Git / imagem | Quem consome | Move? | `pull_policy` | O que significa |
 |---|---|---|---|---|
-| `1.2.1` | **toda instalação de cliente** | **não** | `missing` | uma release, para sempre |
-| `1.2` | ninguém instala | sim | — | conveniência de teste de patch |
-| `stable` | implementador validando antes de atualizar clientes | sim | `always` | a **última release** publicada |
-| `latest` | vitrine, avaliação, quem acompanha o projeto | sim | `always` | **topo da `main`** — código não lançado |
-| `main` | mantenedor e CI | sim | `always` | idêntico a `latest`, nome explícito |
+| `striva-v1.0.0` / `1.0.0` | **toda instalação de cliente** | **não** | `missing` | release da distribuição Striva |
+| tags genéricas herdadas (`v*`) | ninguém neste produto | — | — | histórico antigo; não participa da seleção |
+| `stable` | operador validando antes de atualizar clientes | sim | `always` | a última release Striva completa |
+| `latest` / `main` | vitrine, avaliação, mantenedor e CI | sim | `always` | topo da `main`, código não lançado |
 
 **A regra de ouro:** *instalação que alguém pagou aponta para número de versão. Ponto.*
 
@@ -363,11 +363,16 @@ Um bump de versão **não pode** exigir:
 - editar `.env`, compose ou qualquer arquivo à mão;
 - reinstalar, recriar volume, ou recomeçar do zero;
 - que o operador saiba o que é uma imagem, uma tag ou um registry;
-- migração de namespace de imagem — o namespace está gravado no `.env` de todo cliente
-  instalado; trocá-lo é breaking change e só cabe numa major, com o `update.sh` migrando
-  sozinho e o namespace antigo publicando em paralelo durante a transição.
+- migração de namespace de imagem sem etapa compatível — as referências estão gravadas no
+  `.env` instalado. Para a distribuição independente Striva, a exceção precisa de release
+  de transição no canal legado, migração automática das três imagens, rollback testado e
+  publicação paralela durante o corte.
 
-**Mudança que não couber nessas regras não entra: vira issue com plano de migração.**
+**Exceção desta mudança:** clientes legados recebem primeiro uma release de transição no
+canal antigo. Ela precisa corrigir o bootstrap e mover as referências de imagem com rollback
+verificável antes da estreia de `striva-v1.0.0`. O roteiro está em
+[`../runbooks/ativar-packaging.md`](../runbooks/ativar-packaging.md); até essa transição
+estar publicada e ensaiada, a primeira release Striva não pode ser liberada.
 
 ---
 
@@ -401,24 +406,24 @@ do banco. É o passo que mais trava na estreia de uma imagem nova.
 [ ] 1. CHANGELOG.md tem a seção da versão, com o que muda para quem já instalou
 [ ] 2. Nenhuma variável nova é obrigatória sem default (grep no diff de .env.example)
 [ ] 3. O número da versão NUNCA foi publicado antes:
-       git tag --list 'vX.Y.Z'                     → vazio
-       ghcr_status deskcommcrm X.Y.Z               → 404
+       git tag --list 'striva-vX.Y.Z'              → vazio
+       ghcr_status striva-sales X.Y.Z              → 404
 [ ] 4. Os pins upstream foram revisitados: `waha`, `srh`, `redis`, `caddy`, `postgres`.
        Bumpar ou confirmar que ficam — congelar sem revisar é como o `srh` ficou
        três versões atrás sem ninguém decidir isso
-[ ] 5. `git tag vX.Y.Z && git push origin vX.Y.Z` — a partir de um commit da `main`
+[ ] 5. `git tag striva-vX.Y.Z && git push origin striva-vX.Y.Z` — a partir de um commit da `main`
 [ ] 6. O run de publicação ficou verde:
        gh run list --workflow=publish-image.yml --limit 3
 [ ] 7. As TRÊS imagens existem E são públicas nesta versão:
-       for i in deskcommcrm deskcomm-worker deskcomm-scheduler; do
+       for i in striva-sales striva-worker striva-scheduler; do
          echo "$i: $(ghcr_status $i X.Y.Z)"; done      → 200 nas três
        403 em alguma? Torne o pacote público ANTES de seguir
 [ ] 8. A imagem reporta a versão certa:
-       docker run --rm ghcr.io/welltonsoaress/deskcommcrm:X.Y.Z \
+       docker run --rm ghcr.io/welltonsoaress/striva-sales:X.Y.Z \
          node -e 'console.log(process.env.APP_VERSION)'   → X.Y.Z
-[ ] 9. `gh release create vX.Y.Z` com as notas do CHANGELOG
+[ ] 9. `gh release create striva-vX.Y.Z` com as notas do CHANGELOG
 [ ] 10. SÓ AGORA: `stable` e X.Y.Z são o MESMO digest, nas três imagens:
-        for i in deskcommcrm deskcomm-worker deskcomm-scheduler; do
+        for i in striva-sales striva-worker striva-scheduler; do
           for t in X.Y.Z stable; do
             echo -n "$i:$t "; docker buildx imagetools inspect \
               ghcr.io/welltonsoaress/$i:$t --format '{{.Manifest.Digest}}'; done; done
@@ -466,7 +471,7 @@ parque instalado** percorre, e é o único que a suíte de CI não exercita.
 
 | Camada | Artefato | Garante |
 |---|---|---|
-| CI (mecânico) | `imagens-ok` em `publish-image.yml` | imagem quebrada só **reprova o merge** se o check estiver configurado como obrigatório neste fork. Meça: `gh api repos/welltonsoaress/DeskcommCRM/branches/main/protection --jq '.required_status_checks.contexts'` |
+| CI (mecânico) | `imagens-ok` em `publish-image.yml` | imagem quebrada só **reprova o merge** se o check estiver configurado como obrigatório no repositório Striva. Meça: `gh api repos/welltonsoaress/striva-sales/branches/main/protection --jq '.required_status_checks.contexts'` |
 | CI (mecânico) | `tests/unit/packaging-artefato-do-cliente.test.ts` | serviço `build:`-only, pin upstream solto, `pull_policy` trocado e versão que mente reprovam |
 | CI (mecânico) | `tests/shell/update-guard.test.sh` | atualização que não pina as três imagens reprova |
 | CI (mecânico) | `hostgator-setup-kit/test-validators.sh` | instalação que nasce em tag móvel reprova |
@@ -478,19 +483,24 @@ parque instalado** percorre, e é o único que a suíte de CI não exercita.
 
 ## Decisões registradas
 
-**2026-09-17 — este fork publica no próprio namespace.** Para instalações novas
-de `welltonsoaress/DeskcommCRM`, o CI publica `ghcr.io/welltonsoaress/*` e o kit
-instala essas mesmas três imagens. A decisão original abaixo descreve o parque
-do projeto original e permanece como histórico; não autoriza trocar imagens de
-uma instalação já existente sem verificar o `.env` e planejar a migração.
+**2026-09-26 — Striva Sales é uma distribuição independente.** O contrato próprio
+usa tags `striva-vX.Y.Z` e publica `ghcr.io/welltonsoaress/striva-sales`,
+`striva-worker` e `striva-scheduler`. Releases de outros repositórios não entram
+na seleção. A origem do código, a identidade das imagens e a release precisam
+coincidir antes de atualizar uma instalação.
 
-**2026-08-13 — o namespace fica em `melgarafael`.** Uma consultoria externa recomendou criar
+**2026-08-13 — o namespace de imagens do repositório original ficava em `melgarafael`
+(decisão histórica, supersedida para Striva em 2026-09-26).** Uma consultoria externa recomendou criar
 uma org `deskcommcrm` e migrar, sob a premissa de que o compose apontava para uma org
 desvinculada do repo. A premissa era falsa: o compose sempre apontou para
 `ghcr.io/melgarafael/deskcommcrm`, que é o que o CI publica e o que está gravado no `.env` de
 todo cliente instalado. A string `deskcommcrm/deskcommcrm` existia num único lugar — uma URL
 de `git clone` em `docs/deploy-selfhost/README.md`, que retornava 404. O conserto proporcional
 ao defeito foi essa linha. Racional completo no ADR.
+
+Esse registro explica a compatibilidade das instalações legadas e não é a
+configuração de release atual. A distribuição Striva usa seu próprio namespace,
+prefixo de tags e bootstrap de migração, conforme o aditivo acima e o ADR-0001.
 
 **2026-08-13 — a régua de RAM é de operação, não de build.** A mesma consultoria argumentou
 que publicar a imagem derrubaria o requisito de 4 GB para 2 GB. Os 4 GB nunca foram custo de

@@ -300,7 +300,7 @@ export function FormularioDaMarcaDaOrganizacao({ gravada, instalacao, ambiente }
               id="org_accent_hex"
               value={hex}
               onChange={(e) => setHex(e.target.value)}
-              placeholder="#7a5cd6"
+              placeholder="#7c3aed"
               spellCheck={false}
               autoComplete="off"
               aria-invalid={!hexValido}
@@ -309,7 +309,7 @@ export function FormularioDaMarcaDaOrganizacao({ gravada, instalacao, ambiente }
             />
             {hexLimpo.length > 0 && !hexValido ? (
               <span className="text-sm text-error-fg">
-                {t("Use um código de cor como #7a5cd6.")}
+                {t("Use um código de cor como #7c3aed.")}
               </span>
             ) : null}
           </div>

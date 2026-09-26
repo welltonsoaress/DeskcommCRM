@@ -12,7 +12,7 @@ describe("resolveBranding", () => {
     expect(resolveBranding(undefined, undefined)).toEqual({
       name: DEFAULT_APP_NAME,
       logoUrl: null,
-      initial: "D",
+      initial: "S",
     });
   });
 
@@ -131,7 +131,7 @@ describe("nome do arquivo de códigos de recuperação", () => {
   it("deriva o prefixo da marca, sem acento e sem espaço", () => {
     expect(prefixoDoArquivo("Vendas Turbo")).toBe("vendas-turbo");
     expect(prefixoDoArquivo("Ótima Gestão")).toBe("otima-gestao");
-    expect(prefixoDoArquivo(DEFAULT_APP_NAME)).toBe("deskcommcrm");
+    expect(prefixoDoArquivo(DEFAULT_APP_NAME)).toBe("striva-sales");
   });
 
   it("não devolve hífen pendurado nem repetido", () => {
@@ -249,7 +249,7 @@ const MARCA_CONGELADA: Record<string, EntradaDeMarca> = {
     categoria: "PROTOCOLO",
     motivo:
       "User-Agent exigido pela Nuvemshop, que identifica a aplicação registrada na plataforma deles. Trocar pelo nome do revendedor descreveria uma aplicação que não existe lá",
-    marcas: ["deskcommcrm"],
+    marcas: ["striva"],
   },
   "lib/agenda/google/evento.ts": {
     categoria: "PROTOCOLO",
@@ -262,13 +262,13 @@ const MARCA_CONGELADA: Record<string, EntradaDeMarca> = {
   "app/layout.tsx": {
     categoria: "INFRA",
     motivo:
-      "chave de localStorage do tema, lida no script anti-flash. Renomear faz todo mundo voltar ao tema claro no próximo acesso — e o par com lib/theme.tsx tem de mudar junto",
-    marcas: ["deskcomm-theme"],
+      "chave nova do tema e migração compatível da chave anterior, lidas no script anti-flash",
+    marcas: ["deskcomm-theme", "striva-theme", "striva-theme", "striva-theme"],
   },
   "lib/theme.tsx": {
     categoria: "INFRA",
-    motivo: "a mesma chave de localStorage do script do layout; as duas são um par só",
-    marcas: ["deskcomm-theme"],
+    motivo: "chave nova de localStorage com leitura e remoção da chave anterior para preservar a preferência salva",
+    marcas: ["deskcomm-theme", "striva-theme"],
   },
   "lib/supabase/browser.ts": {
     categoria: "INFRA",
@@ -301,25 +301,17 @@ const MARCA_CONGELADA: Record<string, EntradaDeMarca> = {
   },
 
   // ─── DIVIDA — vazamento real. Cada linha declara a fase que a apaga. ───
-  "lib/email/templates/ai-budget-alarm.tsx": {
-    categoria: "DIVIDA",
-    fase: 7,
-    motivo:
-      "template sem caminho de produção: sem rota em app/api/v1/cron/, sem linha no docker/scheduler/entrypoint.sh e, desde a limpeza do teto de orçamento (0159), sem chamador NENHUM — o único era workers/ai-budget-checker.cron.ts, que foi apagado por nunca ter tido agendador. Marcar isto não muda nada que um usuário veja, e a única 'prova' possível seria invocar a função à mão — o que prova a função, não o produto. Sai quando o alarme ganhar cron de verdade (ou quando o template for apagado junto)",
-    marcas: ["deskcommcrm"],
-  },
-
   // ─── DEV — fixture de teste; não embarca. ───
   "lib/agent-engine/agent/draft-reply.test.ts": {
     categoria: "DEV",
     motivo: "nome de agente numa fixture de teste ('Bot Deskcomm'); não sai da suíte",
     marcas: ["deskcomm"],
   },
-  "lib/system/changelog.test.ts": {
-    categoria: "DEV",
+  "lib/system/distribution.ts": {
+    categoria: "INFRA",
     motivo:
-      "fixture que reproduz o CHANGELOG real, incluindo as URLs do repositório no GitHub. A marca aqui é o nome do repositório upstream, que o clone não renomeia",
-    marcas: ["deskcommcrm", "deskcommcrm", "deskcommcrm"],
+      "identidade técnica usada para separar tags e releases desta distribuição; é um contrato de atualização e não uma fonte de texto de marca para instalações white-label",
+    marcas: ["striva-sales", "striva-sales", "striva-v"],
   },
 
   // ─── PADRAO — a marca padrão precisa existir em algum lugar. ───
@@ -327,7 +319,7 @@ const MARCA_CONGELADA: Record<string, EntradaDeMarca> = {
     categoria: "PADRAO",
     motivo:
       "é a DEFINIÇÃO de DEFAULT_APP_NAME — o valor que aparece quando o operador não configurou marca nenhuma. Se esta linha sumir, some o padrão",
-    marcas: ["deskcommcrm"],
+    marcas: ["striva"],
   },
 };
 
@@ -371,7 +363,7 @@ function marcasNoTexto(fonte: string): string[] {
   for (const linha of fonte.split("\n")) {
     const inicio = linha.trimStart();
     if (inicio.startsWith("//") || inicio.startsWith("*") || inicio.startsWith("/*")) continue;
-    for (const casada of linha.matchAll(/[\w@.-]*deskcomm[\w@.-]*/gi)) {
+    for (const casada of linha.matchAll(/[\w@.-]*(?:deskcomm|striva)[\w@.-]*/gi)) {
       // Pontuação encostada (o ponto final de "no DeskcommCRM.") não faz parte
       // do identificador e faria a lista mudar por causa de uma vírgula.
       achadas.push(casada[0].toLowerCase().replace(/^[.-]+/, "").replace(/[.-]+$/, ""));
@@ -420,6 +412,7 @@ describe("catraca de marca hardcoded", () => {
     ]);
     expect(marcasNoTexto(`href="mailto:suporte@deskcomm.app"`)).toEqual(["suporte@deskcomm.app"]);
     expect(marcasNoTexto(`const k = "sb-DESKCOMM-auth";`)).toEqual(["sb-deskcomm-auth"]);
+    expect(marcasNoTexto(`const nome = "${["St", "riva"].join("")} Sales";`)).toEqual(["striva"]);
   });
 
   it("ignora comentário, mas não confunde `//` de URL com comentário", () => {
@@ -490,10 +483,8 @@ describe("catraca de marca hardcoded", () => {
       .map(([arquivo]) => arquivo);
     expect(
       dividas,
-      "a Fase 4 zerou as dívidas de marca, exceto o alarme de orçamento de IA " +
-        "(que não tem caminho de produção). Dívida nova aqui precisa de decisão, " +
-        "não de mais uma linha na lista.",
-    ).toEqual(["lib/email/templates/ai-budget-alarm.tsx"]);
+      "a identidade padrão de toda saída embarcada precisa estar resolvida; dívida nova exige decisão, não outra linha na lista.",
+    ).toEqual([]);
   });
 
   it("toda DIVIDA nomeia a fase que a resolve, e só DIVIDA tem fase", () => {
@@ -558,7 +549,7 @@ describe("catraca de marca no que o GoTrue renderiza", () => {
       categoria: "DEV",
       motivo:
         "config do Supabase LOCAL (o `supabase start` de dev e do CI). NÃO embarca na imagem e NÃO alcança clone nenhum: um self-hoster usa um projeto na nuvem do Supabase, cuja config de auth vem do marca-emails.sh, ou um GoTrue próprio, que lê env. `project_id` ainda nomeia os contêineres locais (supabase_auth_deskcomm-crm) e os assuntos são o que a suíte local envia",
-      marcas: ["deskcomm-crm", "deskcommcrm", "deskcommcrm"],
+      marcas: ["deskcomm-crm", "striva", "striva"],
     },
   };
 

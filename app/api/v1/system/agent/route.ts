@@ -43,6 +43,15 @@ const heartbeat = z.object({
   // "nunca houve release" para todo mundo.
   has_known_release: z.boolean().optional().default(true),
   changelog: z.string().max(CHANGELOG_MAX_BYTES),
+  // Identidade independente da versão numérica: impede tags homônimas de outra
+  // distribuição e prova o que o contêiner executa. Defaults mantêm agentes
+  // antigos compatíveis até que o host receba a imagem Striva.
+  current_distribution_id: z.string().max(64).optional().default(""),
+  current_release_tag: z.string().max(128).optional().default(""),
+  current_revision: z.string().max(64).optional().default(""),
+  latest_release_tag: z.string().max(128).optional().default(""),
+  latest_release_commit: z.string().max(64).optional().default(""),
+  release_repository: z.string().max(200).optional().default(""),
 });
 
 const runProgress = z.object({
@@ -98,6 +107,12 @@ export async function POST(req: NextRequest): Promise<Response> {
         compare_failed: payload.compare_failed,
         has_known_release: payload.has_known_release,
         changelog_raw: payload.changelog,
+        current_distribution_id: payload.current_distribution_id,
+        current_release_tag: payload.current_release_tag,
+        current_revision: payload.current_revision,
+        latest_release_tag: payload.latest_release_tag,
+        latest_release_commit: payload.latest_release_commit,
+        release_repository: payload.release_repository,
         agent_last_seen_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })

@@ -1,31 +1,33 @@
-# Atualizando o DeskcommCRM na sua VPS
+# Atualizando o Striva Sales na sua VPS
 
-Saiu uma versão nova? Atualizar é **um comando só**. Você não precisa saber se a
-novidade é no código, no banco de dados ou nos dois — o comando cuida de tudo, na
-ordem certa e com backup automático antes de mexer em qualquer coisa.
+O Striva Sales verifica releases próprias (`striva-vX.Y.Z`) e só libera a ação para
+quem administra a plataforma. Administradores das organizações e demais usuários
+veem a versão instalada, mas não recebem o aviso nem podem iniciar a atualização.
+Não existe atualização automática.
 
 ## O que fazer
 
-Entre no seu servidor (o mesmo acesso SSH que você usou pra instalar), vá até a pasta
-do projeto e rode:
+Atualizar reinicia o sistema compartilhado por **todas as organizações desta
+instalação**. Escolha uma janela adequada. Pela tela, a administração da plataforma
+confirma a operação e o sistema cria o backup antes de alterar o banco ou recriar os
+serviços. Se precisar operar por SSH, use a pasta do projeto:
 
 ```bash
 bash hostgator-setup-kit/update.sh
 ```
 
-Pronto. Pode deixar rodando — leva alguns minutos. No fim, você vê **`✓ Atualização
-concluída — app no ar e saudável`**. Se ele disser que você **já está na versão mais
-recente**, é porque não havia nada novo pra baixar; está tudo certo.
+O processo leva alguns minutos. A operação só conclui depois que os serviços voltam
+saudáveis. Se o registro não responder ou faltar uma das três imagens da release,
+a atualização para antes de mexer no banco e nos serviços. Se já estiver na versão
+mais recente, nenhuma alteração é feita.
 
 ## O que o comando faz (por baixo)
 
-1. Confere se há mesmo uma versão nova.
-2. **Faz um backup do banco** — a rede de segurança, antes de tocar em qualquer coisa.
-3. Baixa o código novo.
-4. Atualiza o banco de dados (inclusive corrigindo sozinho conversas bagunçadas de
-   versões antigas).
-5. Baixa a versão nova do aplicativo e reinicia.
-6. Confere se o CRM voltou no ar.
+1. Confere se há uma release Striva própria mais nova e se app, worker e scheduler
+   estão publicados na mesma versão.
+2. Baixa e valida as três imagens antes de alterar a instalação.
+3. Faz o backup, baixa o código da tag exata e aplica o baseline idempotente.
+4. Reinicia os serviços e só declara sucesso depois da verificação de saúde.
 
 ## Coisas normais que você pode ver (não se assuste)
 
@@ -38,13 +40,7 @@ recente**, é porque não havia nada novo pra baixar; está tudo certo.
 
 ## Dicas
 
-- **Quando rodar?** Sempre que avisarem que saiu versão nova. Rodar sem ter novidade não
-  faz mal — o comando só diz "já está na última" e sai.
-- **Automático (opcional):** dá pra agendar pra toda semana. Rode `crontab -e` e adicione
-  (troque o caminho pela pasta do seu projeto):
-  ```
-  0 4 * * 0  cd /caminho/do/deskcommcrm && bash hostgator-setup-kit/update.sh
-  ```
-  Isso atualiza todo domingo às 4h da manhã, já com backup automático.
+- **Quando atualizar?** Depois do aviso de release, na janela escolhida pela
+  administração da plataforma. A checagem periódica não atualiza nada sozinha.
 - **Deu algo estranho?** Rode `bash hostgator-setup-kit/healthcheck.sh` pra ver o estado
   de tudo de uma vez.

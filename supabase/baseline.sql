@@ -98,7 +98,6 @@ begin
   return v_event_id;
 end $$;
 
-
 ALTER FUNCTION "public"."emit_event"("p_event_type" "text", "p_entity_kind" "text", "p_entity_id" "uuid", "p_payload" "jsonb", "p_metadata" "jsonb", "p_organization_id" "uuid") OWNER TO "postgres";
 
 
@@ -24181,3 +24180,111 @@ drop trigger if exists trg_management_actions_updated_at on public.management_ac
 create trigger trg_management_actions_updated_at before update on public.management_actions
   for each row execute function public.fn_set_updated_at();
 notify pgrst, 'reload schema';
+
+-- 0239: Realtime de casos aguardando ação humana (estado operacional).
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication where pubname = 'supabase_realtime'
+  ) then
+    create publication supabase_realtime;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+     where pubname = 'supabase_realtime'
+       and schemaname = 'public'
+       and tablename = 'agent_cases'
+  ) then
+    execute 'alter publication supabase_realtime add table public.agent_cases';
+  end if;
+end $$;
+
+-- 0240: identidade verificada da distribuição e release em execução.
+alter table public.system_version
+  add column if not exists current_distribution_id text not null default '',
+  add column if not exists current_release_tag text not null default '',
+  add column if not exists current_revision text not null default '',
+  add column if not exists latest_release_tag text not null default '',
+  add column if not exists latest_release_commit text not null default '',
+  add column if not exists release_repository text not null default '';
+comment on column public.system_version.current_distribution_id is
+  'Identidade da distribuição reportada pelo contêiner em execução; vazio em imagens legadas.';
+comment on column public.system_version.current_release_tag is
+  'Tag completa e imutável da release que construiu o contêiner em execução.';
+comment on column public.system_version.current_revision is
+  'Commit incorporado à imagem em execução, separado do checkout atual do host.';
+comment on column public.system_version.latest_release_tag is
+  'Tag completa da release própria selecionada pelo agente do host.';
+comment on column public.system_version.latest_release_commit is
+  'Commit resolvido a partir da tag exata da release selecionada.';
+comment on column public.system_version.release_repository is
+  'Repositório de origem da distribuição consultado pelo agente.';
+
+-- 0241: identidade estável de cada entrada em awaiting_human.
+alter table public.agent_cases
+  add column if not exists awaiting_human_at timestamptz;
+update public.agent_cases
+   set awaiting_human_at = coalesce(updated_at, opened_at, now())
+ where status = 'awaiting_human'
+   and awaiting_human_at is null;
+create or replace function public.fn_agent_cases_track_human_wait()
+returns trigger
+language plpgsql
+set search_path = public, pg_temp
+as $$
+begin
+  if new.status = 'awaiting_human' then
+    if tg_op = 'INSERT' or old.status is distinct from new.status then
+      new.awaiting_human_at := clock_timestamp();
+    else
+      new.awaiting_human_at := coalesce(old.awaiting_human_at, new.awaiting_human_at, now());
+    end if;
+  else
+    new.awaiting_human_at := null;
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.fn_agent_cases_track_human_wait() from public, anon, authenticated;
+alter table public.agent_cases
+  drop constraint if exists agent_cases_awaiting_human_timestamp;
+alter table public.agent_cases
+  add constraint agent_cases_awaiting_human_timestamp
+  check (status <> 'awaiting_human' or awaiting_human_at is not null);
+create index if not exists agent_cases_human_wait_idx
+  on public.agent_cases (organization_id, awaiting_human_at desc)
+  where status = 'awaiting_human';
+drop trigger if exists trg_agent_cases_track_human_wait on public.agent_cases;
+create trigger trg_agent_cases_track_human_wait
+  before insert or update on public.agent_cases
+  for each row execute function public.fn_agent_cases_track_human_wait();
+notify pgrst, 'reload schema';
+
+-- 0242: migra apenas o nome padrão legado da distribuição; preserva marcas próprias.
+with migrada as (
+  update public.platform_branding
+     set app_name = 'Striva Sales'
+   where id = 1
+     and seeded_from_env = true
+     and app_name = 'DeskcommCRM'
+     and nullif(btrim(logo_url), '') is null
+     and logo_path is null
+  returning id
+)
+insert into public.api_audit_log (
+  organization_id,
+  action,
+  resource_type,
+  metadata
+)
+select
+  null,
+  'platform_branding.product_rebrand_applied',
+  'platform_branding',
+  jsonb_build_object(
+    'previous_name', 'DeskcommCRM',
+    'current_name', 'Striva Sales',
+    'source', 'distribution_migration'
+  )
+from migrada;

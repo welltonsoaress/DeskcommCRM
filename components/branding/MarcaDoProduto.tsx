@@ -6,8 +6,7 @@ import { cn } from "@/lib/utils";
  * ninguém configurou marca própria (`marcaEhADoProduto`, em `lib/branding.ts`).
  *
  * Inline, e não `<img src="/algo.svg">`, por três motivos:
- *  - as cores seguem o TEMA: sálvia mais clara e nome em creme no escuro, como
- *    a régua do produto já define — um arquivo estático teria uma cor só;
+ *  - as cores seguem o TEMA: violeta mais claro e nome em creme no escuro;
  *  - nada em `public/`: um `.svg` fixo ali seria servido na instalação de um
  *    revendedor que configurou a marca dele (ver `lib/branding/desenho.ts`);
  *  - a barra lateral já usa `<img>` para o logo CONFIGURADO, e o e2e
@@ -26,9 +25,10 @@ type Props = {
   readonly decorativo?: boolean;
 };
 
-const SIMBOLO_CLARO_ESCURO = "fill-[#506d48] dark:fill-[#82a077]";
-const NOME_CLARO_ESCURO = "fill-[#1c1a16] dark:fill-[#f5f4ef]";
-const SUFIXO_CLARO_ESCURO = "fill-[#5d594f] dark:fill-[#8e8b7f]";
+const SIMBOLO_CLARO_ESCURO = "fill-[#7c3aed] dark:fill-[#a78bfa]";
+const MODULO_CLARO_ESCURO = "fill-[#a78bfa] dark:fill-[#7c3aed]";
+const NOME_CLARO_ESCURO = "stroke-[#1c1a16] dark:stroke-[#f5f4ef]";
+const SUFIXO_CLARO_ESCURO = "stroke-[#5d594f] dark:stroke-[#8e8b7f]";
 
 // As classes acima repetem os hexes de `CORES_DA_MARCA` porque o Tailwind só
 // gera utilitário para valor LITERAL no fonte. Quem impede os dois de divergirem
@@ -36,6 +36,7 @@ const SUFIXO_CLARO_ESCURO = "fill-[#5d594f] dark:fill-[#8e8b7f]";
 // e não uma asserção em runtime: um throw aqui derrubaria a casca inteira.
 export const CLASSES_DE_COR = {
   simbolo: SIMBOLO_CLARO_ESCURO,
+  modulo: MODULO_CLARO_ESCURO,
   nome: NOME_CLARO_ESCURO,
   sufixo: SUFIXO_CLARO_ESCURO,
 } as const;
@@ -56,7 +57,7 @@ export function SimboloDoProduto({ nome, className, decorativo = false }: Props)
     >
       <g className={SIMBOLO_CLARO_ESCURO} transform={SIMBOLO.transform}>
         <path d={SIMBOLO.d} />
-        <rect {...SIMBOLO.modulo} />
+        <rect {...SIMBOLO.modulo} className={MODULO_CLARO_ESCURO} />
       </g>
     </svg>
   );
@@ -72,14 +73,26 @@ export function LogotipoDoProduto({ nome, className, decorativo = false }: Props
     >
       <g className={SIMBOLO_CLARO_ESCURO} transform={LOGOTIPO.simbolo.transform}>
         <path d={LOGOTIPO.simbolo.d} />
-        <rect {...LOGOTIPO.simbolo.modulo} />
+        <rect {...LOGOTIPO.simbolo.modulo} className={MODULO_CLARO_ESCURO} />
       </g>
-      <g className={NOME_CLARO_ESCURO}>
+      <g
+        className={NOME_CLARO_ESCURO}
+        fill="none"
+        strokeWidth={8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         {LOGOTIPO.nome.map((g) => (
           <path key={g.transform} transform={g.transform} d={g.d} />
         ))}
       </g>
-      <g className={SUFIXO_CLARO_ESCURO}>
+      <g
+        className={SUFIXO_CLARO_ESCURO}
+        fill="none"
+        strokeWidth={4.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         {LOGOTIPO.sufixo.map((g) => (
           <path key={g.transform} transform={g.transform} d={g.d} />
         ))}

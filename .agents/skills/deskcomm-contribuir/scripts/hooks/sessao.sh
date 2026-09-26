@@ -18,7 +18,7 @@ estado_hooks="hooks de git do contribuidor NÃO armados (bash .agents/skills/des
 case "$hooks" in *deskcomm-contribuir*) estado_hooks="hooks de git do contribuidor armados" ;; esac
 
 cat <<TXT
-[DeskcommCRM] Este clone é de um contribuidor (não do mantenedor). Antes de codar ou commitar,
+[Striva Sales] Este clone é de um contribuidor (não do mantenedor). Antes de codar ou commitar,
 carregue a skill deskcomm-contribuir: ela mede o que a triagem mede (branch atrasada, tripla de
 migration, marca do fork no diff, fragmento de release) e evita retrabalho. $estado_hooks.
 Guias para outras situações: deskcomm-instalar, deskcomm-cliente-novo, deskcomm-metricas, deskcomm-prompt.

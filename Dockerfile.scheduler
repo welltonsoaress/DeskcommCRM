@@ -7,12 +7,21 @@
 # deveria ser offline. Doutrina: docs/doctrine/packaging.md, invariante 1.
 FROM alpine:3.20
 
-LABEL org.opencontainers.image.source="https://github.com/welltonsoaress/DeskcommCRM" \
+LABEL org.opencontainers.image.source="https://github.com/welltonsoaress/striva-sales" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.title="DeskcommCRM scheduler"
+      org.opencontainers.image.title="Striva Sales scheduler"
 
 ARG APP_VERSION=dev
+ARG APP_REVISION=unknown
+ARG APP_RELEASE_TAG=
+ARG APP_DISTRIBUTION_ID=striva-sales
+LABEL org.opencontainers.image.version=$APP_VERSION \
+      org.opencontainers.image.revision=$APP_REVISION \
+      org.opencontainers.image.ref.name=$APP_RELEASE_TAG
 ENV APP_VERSION=$APP_VERSION \
+    APP_REVISION=$APP_REVISION \
+    APP_RELEASE_TAG=$APP_RELEASE_TAG \
+    APP_DISTRIBUTION_ID=$APP_DISTRIBUTION_ID \
     TZ=UTC
 
 RUN apk add --no-cache curl tzdata

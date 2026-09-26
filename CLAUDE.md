@@ -1,4 +1,4 @@
-# CLAUDE.md — DeskcommCRM
+# CLAUDE.md — Striva Sales
 
 > Instruções pra futuras sessões Claude trabalhando neste repo. Leitura obrigatória antes de qualquer task de código.
 
@@ -14,7 +14,7 @@
 
 ## Visão (1 parágrafo)
 
-DeskcommCRM é um sistema operacional de vendas open source com agentes de IA nativos — multi-nicho (e-commerce, clínicas, imobiliárias, infoprodutos, serviços), com WhatsApp como canal primário (via WAHA). Agentes com RAG por tenant atendem, qualificam e movem o funil junto com humanos; CRM inteiro exposto via MCP. Monetização = self-host em VPS (parceria HostGator), não assinatura. Arquitetura multi-tenant com RLS desde o dia 1; LGPD nativa. Posicionamento completo: `VISION.md`.
+Striva Sales é um sistema operacional de vendas open source com agentes de IA nativos — multi-nicho (e-commerce, clínicas, imobiliárias, infoprodutos, serviços), com WhatsApp como canal primário (via WAHA). Agentes com RAG por tenant atendem, qualificam e movem o funil junto com humanos; CRM inteiro exposto via MCP. Monetização = self-host em VPS (parceria HostGator), não assinatura. Arquitetura multi-tenant com RLS desde o dia 1; LGPD nativa. Posicionamento completo: `VISION.md`.
 
 ---
 
@@ -364,15 +364,13 @@ Checks **obrigatórios** na branch protection da `main` (verificado na configura
   **Por que não há mais número aqui.** O conserto que este parágrafo pedia era pôr a prosa sob gate — `tests/unit/e2e-cobertura-completa.test.ts` cobrando também o texto daqui. Tirar o número é melhor e mais barato: não há o que policiar, e a diferença entre disco e CI segue vigiada onde importa, no próprio teste, que reprova toda spec nova que não esteja em `SPECS_PARTE_*` ou em `FORA_DO_CI` **com motivo escrito**. Prosa que nenhum gate lê é prosa que diverge; prosa que não afirma número não tem como divergir.
 - **`imagens-ok`** (`publish-image.yml`) — reprova quando qualquer uma das três imagens Docker não constrói. **É obrigatório desde 2026-08-13**; este arquivo dizia o contrário em outro parágrafo (ver a doutrina de packaging acima, já corrigida).
 
-No repositório original, os **cinco** eram **obrigatórios** — medido em 2026-08-14 na branch protection:
+Na distribuição Striva Sales, a branch protection ainda precisa ser medida após a publicação do repositório próprio:
 
 ```console
-$ gh api repos/melgarafael/DeskcommCRM/branches/main/protection --jq '.required_status_checks.contexts|join(", ")'
-verify, build-and-size, invariants, e2e, imagens-ok
+$ gh api repos/welltonsoaress/striva-sales/branches/main/protection --jq '.required_status_checks.contexts|join(", ")'
 ```
 
-Este fork precisa configurar a própria proteção; a medição histórica acima não
-prova que `welltonsoaress/DeskcommCRM` já exige esses checks.
+Não use a proteção do repositório anterior como prova de que o Striva exige esses checks.
 
 Duas correções que este bloco já pagou: o `e2e` entrou para a lista depois de o arquivo ser escrito, e
 a versão anterior dizia que ele "ainda não é obrigatório"; depois o `imagens-ok` entrou e o arquivo
@@ -386,7 +384,7 @@ Ao mexer em schema, RLS, RBAC, atribuição, escopo, roteamento, follow-up, webh
 
 ## QA Visual com Recursos Reais — DOUTRINA (produto self-host)
 
-**O DeskcommCRM é distribuído open-source: a experiência de quem instala numa VPS É o produto.** Toda feature nova (ou fix de comportamento visível) DEVE ser provada como um **usuário leigo a usaria de verdade** — pelo frontend, num ambiente que imita a instalação fresca — antes de "pronto". Não é opcional; é critério de aceite de toda sessão que toca UI ou fluxo de usuário.
+**O Striva Sales é distribuído open-source: a experiência de quem instala numa VPS É o produto.** Toda feature nova (ou fix de comportamento visível) DEVE ser provada como um **usuário leigo a usaria de verdade** — pelo frontend, num ambiente que imita a instalação fresca — antes de "pronto". Não é opcional; é critério de aceite de toda sessão que toca UI ou fluxo de usuário.
 
 **O que "recurso real" significa (e o que NÃO conta):**
 - **Conta.** Prova pela tela, dirigindo o browser (Playwright), logando com conta de teste real. `curl`/chamada de API **não** provam UX — validam o backend, mas não o que o usuário vê, clica e entende. Use curl só como diagnóstico.

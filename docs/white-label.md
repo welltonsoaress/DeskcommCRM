@@ -2,7 +2,7 @@
 
 # Instalar para clientes (agências e revendedores)
 
-Guia para quem instala o DeskcommCRM **para outras empresas** — agência, consultoria, revendedor — e cobra por isso.
+Guia para quem instala o Striva Sales **para outras empresas** — agência, consultoria, revendedor — e cobra por isso.
 
 A licença é MIT: você pode modificar, hospedar para terceiros, revender e cobrar o que quiser. Não há royalty, não há cláusula proibindo hospedagem comercial e não existe versão paga que trave funcionalidade do seu cliente.
 
@@ -31,7 +31,7 @@ Entre os dois, **o arquivo subido pela tela vence a URL do `.env`** — quem sub
 ```bash
 APP_NAME=Vendas Turbo CRM
 APP_LOGO_URL=https://cdn.suaempresa.com.br/logo.svg
-APP_ACCENT_HEX=#7a5cd6
+APP_ACCENT_HEX=#7C3AED
 ```
 
 O `install.sh` pergunta **duas** delas e as grava: o `APP_NAME` (Enter mantém o padrão) e o `APP_ACCENT_HEX` (Enter usa a cor do sistema). `APP_LOGO_URL` ele não pergunta — o caminho normal do logo é subir o arquivo pela tela, e esta chave existe para quem prefere hospedar por conta própria.

@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { loadAuthUser } from "@/lib/auth/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { audit } from "@/lib/audit";
+import { DISTRIBUTION_ID, DISTRIBUTION_REPOSITORY, distributionTag } from "@/lib/system/distribution";
 
 vi.mock("@/lib/auth/server", () => ({
   loadAuthUser: vi.fn(),
@@ -62,6 +63,12 @@ beforeEach(() => {
     agent_last_seen_at: new Date().toISOString(),
     compare_failed: false,
     update_requested_at: null,
+    current_distribution_id: DISTRIBUTION_ID,
+    current_release_tag: distributionTag("1.0.0"),
+    current_revision: "1234567890abcdef",
+    latest_release_tag: distributionTag("1.1.0"),
+    latest_release_commit: "abcdef0123456789abcdef0123456789abcdef01",
+    release_repository: DISTRIBUTION_REPOSITORY,
   };
 
   vi.mocked(createAdminClient).mockReturnValue({
@@ -162,6 +169,69 @@ describe("GET /api/v1/system/version", () => {
     expect(body.data.notes).toBeUndefined();
   });
 
+  it("não expõe nem oferece atualização durante impersonação de cliente", async () => {
+    vi.mocked(loadAuthUser).mockResolvedValue({ ...OWNER, support: { access_mode: "full" } } as never);
+    const { GET } = await import("../version/route");
+    const body = await (await GET(get())).json();
+    expect(body.data).toEqual({ current_version: "1.0.0", is_owner: false });
+  });
+
+  it("detecta a migração da distribuição legada mesmo quando os números coincidem", async () => {
+    versionRow.latest_version = "1.0.0";
+    versionRow.latest_release_tag = distributionTag("1.0.0");
+    versionRow.current_distribution_id = "";
+    versionRow.current_release_tag = "";
+    vi.mocked(loadAuthUser).mockResolvedValue(OWNER as never);
+    const { GET } = await import("../version/route");
+    const body = await (await GET(get())).json();
+    expect(body.data.current_version).toBe("1.0.0");
+    expect(body.data.latest_release_tag).toBe(distributionTag("1.0.0"));
+    expect(body.data.update_available).toBe(true);
+  });
+
+  it("não anuncia versão nem notas quando a origem reportada é outro repositório", async () => {
+    vi.mocked(loadAuthUser).mockResolvedValue(OWNER as never);
+    versionRow.release_repository = "fork.example/legacy-crm";
+    versionRow.latest_version = "2.0.0";
+    versionRow.latest_release_tag = "fork-v2.0.0";
+    versionRow.changelog_raw = "## [2.0.0] — 2026-09-01\n\nnota de outro projeto\n";
+
+    const { GET } = await import("../version/route");
+    const body = await (await GET(get())).json();
+    expect(body.data.update_available).toBe(false);
+    expect(body.data.release_source_unverified).toBe(true);
+    expect(body.data.latest_version).toBe("");
+    expect(body.data.latest_release_tag).toBe("");
+    expect(body.data.latest_release_commit).toBe("");
+    expect(body.data.release_repository).toBe("");
+    expect(body.data.notes).toBeNull();
+    expect(body.data.has_known_release).toBe(false);
+    expect(JSON.stringify(body.data)).not.toContain("nota de outro projeto");
+  });
+
+  it("exige tag e commit coerentes antes de confiar em uma release do repositório próprio", async () => {
+    vi.mocked(loadAuthUser).mockResolvedValue(OWNER as never);
+    versionRow.latest_release_tag = distributionTag("2.0.0");
+
+    const { GET } = await import("../version/route");
+    const body = await (await GET(get())).json();
+    expect(body.data.release_source_unverified).toBe(true);
+    expect(body.data.update_available).toBe(false);
+    expect(body.data.latest_version).toBe("");
+    expect(body.data.notes).toBeNull();
+  });
+
+  it("não confia em uma release sem SHA de commit verificável", async () => {
+    vi.mocked(loadAuthUser).mockResolvedValue(OWNER as never);
+    versionRow.latest_release_commit = "hash-incompleto";
+
+    const { GET } = await import("../version/route");
+    const body = await (await GET(get())).json();
+    expect(body.data.release_source_unverified).toBe(true);
+    expect(body.data.update_available).toBe(false);
+    expect(body.data.notes).toBeNull();
+  });
+
   it("entrega o estado completo e a faixa do CHANGELOG para o dono", async () => {
     vi.mocked(loadAuthUser).mockResolvedValue(OWNER as never);
     const { GET } = await import("../version/route");
@@ -180,6 +250,7 @@ describe("GET /api/v1/system/version", () => {
     // e o aviso de ação manual da versão do meio desaparecia (commit ac9472c5).
     versionRow.current_version = "1.0.0";
     versionRow.latest_version = "1.2.0";
+    versionRow.latest_release_tag = distributionTag("1.2.0");
     versionRow.changelog_raw = [
       "## [1.2.0] — 2026-08-03",
       "",
@@ -410,6 +481,22 @@ describe("POST /api/v1/system/update", () => {
     vi.mocked(loadAuthUser).mockResolvedValue(MEMBRO as never);
     const { POST } = await import("../update/route");
     expect((await POST(post())).status).toBe(403);
+    expect(inserted).toBeNull();
+  });
+
+  it("não cria run se a versão anunciada aponta para outro repositório", async () => {
+    vi.mocked(loadAuthUser).mockResolvedValue(OWNER as never);
+    versionRow.release_repository = "fork.example/legacy-crm";
+    const { POST } = await import("../update/route");
+    expect((await POST(post())).status).toBe(409);
+    expect(inserted).toBeNull();
+  });
+
+  it("não cria run se a tag não corresponder à versão verificada", async () => {
+    vi.mocked(loadAuthUser).mockResolvedValue(OWNER as never);
+    versionRow.latest_release_tag = distributionTag("9.9.9");
+    const { POST } = await import("../update/route");
+    expect((await POST(post())).status).toBe(409);
     expect(inserted).toBeNull();
   });
 

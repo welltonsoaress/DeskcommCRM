@@ -1,4 +1,4 @@
-# Como subir o seu DeskcommCRM na HostGator (passo a passo, sem enrolação)
+# Como subir o seu Striva Sales na HostGator (passo a passo, sem enrolação)
 
 Este guia leva você do zero — sem servidor, sem nada — até o seu CRM no ar, com
 WhatsApp conectado e IA respondendo. **Não precisa saber programar.** Se travar em
@@ -12,7 +12,7 @@ algum passo, o assistente do Claude Code faz por você (veja o [Caminho fácil](
 ## Visão geral (o que vamos montar)
 
 ```
-Seu domínio  →  Servidor VPS (HostGator)  →  DeskcommCRM rodando
+Seu domínio  →  Servidor VPS (HostGator)  →  Striva Sales rodando
                         │
                         ├─ o CRM (site + painel)
                         ├─ o WhatsApp (conectado por QR)
@@ -37,7 +37,7 @@ contrata no passo 1.
 
 ## Passo 1 — Contrate o servidor (VPS) na HostGator
 
-O DeskcommCRM roda num **VPS com Docker**. A opção mais fácil é um VPS que **já vem
+O Striva Sales roda num **VPS com Docker**. A opção mais fácil é um VPS que **já vem
 com Docker instalado**:
 
 - 👉 **[VPS com GatorClaw](https://www.hostgator.com.br/52708-142-3-53.html)** — recomendado, Docker pronto
@@ -142,7 +142,7 @@ Agora escolha um dos dois caminhos:
 1. Conecte no servidor por SSH e **abra o Claude Code lá dentro** (na VPS, não no seu PC).
 2. Escreva pra ele exatamente isto:
 
-   > *"Clone https://github.com/welltonsoaress/DeskcommCRM e me instale o DeskcommCRM
+   > *"Clone https://github.com/welltonsoaress/striva-sales e me instale o Striva Sales
    > seguindo o `hostgator-setup-kit/install.sh`. Me pergunte as chaves uma por uma e
    > resolva os erros você mesmo."*
 
@@ -158,8 +158,8 @@ Agora escolha um dos dois caminhos:
 No servidor, baixe o projeto e rode o instalador:
 
 ```bash
-git clone https://github.com/welltonsoaress/DeskcommCRM.git
-cd DeskcommCRM
+git clone https://github.com/welltonsoaress/striva-sales.git
+cd striva-sales
 bash hostgator-setup-kit/install.sh
 ```
 
@@ -240,7 +240,7 @@ erros do servidor e resolve.
 
 ## Por que HostGator?
 
-O DeskcommCRM foi desenhado pra rodar redondo na infraestrutura da HostGator. Além do
+O Striva Sales foi desenhado pra rodar redondo na infraestrutura da HostGator. Além do
 VPS, você pode centralizar aí:
 
 - **[Registro de domínio](https://www.hostgator.com.br/52708-77-3-32.html)** para o seu CRM;

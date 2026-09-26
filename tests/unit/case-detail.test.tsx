@@ -4,6 +4,12 @@ import { describe, expect, it, vi } from "vitest";
 import type * as UseCasesModule from "@/hooks/ai/useCases";
 
 const useCaseMock = vi.fn();
+vi.mock("@/hooks/auth/AuthProvider", () => ({
+  useAuth: () => ({
+    activeOrg: { orgId: "org-1", role: "admin" },
+    user: { support: false },
+  }),
+}));
 vi.mock("@/hooks/ai/useCases", async () => {
   const actual = await vi.importActual<typeof UseCasesModule>("@/hooks/ai/useCases");
   return { ...actual, useCase: (...args: unknown[]) => useCaseMock(...args) };

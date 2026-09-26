@@ -143,7 +143,7 @@ function decisaoPara(sha: string): string {
     const saida = execFileSync("bash", ["-c", script], {
       cwd: repo,
       encoding: "utf8",
-      env: { ...process.env, GITHUB_OUTPUT: saidaDoGithub },
+      env: { ...process.env, APP_SLUG: "deskcomm-release", GITHUB_OUTPUT: saidaDoGithub },
       stdio: ["ignore", "pipe", "pipe"],
     });
     const escrito = readFileSync(saidaDoGithub, "utf8");

@@ -3,12 +3,12 @@ marp: true
 theme: default
 class: invert
 paginate: true
-title: DeskcommCRM — Pitch Deck v0.1
+title: Striva Sales — Pitch Deck v0.1
 description: CRM operacional com IA pra e-commerce brasileiro
 date: 2026-04-29
 ---
 
-# DeskcommCRM
+# Striva Sales
 
 ### O CRM operacional onde **IA e humanos atendem juntos** os clientes finais de PMEs de e-commerce no WhatsApp.
 
@@ -34,7 +34,7 @@ PME de e-commerce brasileiro hoje atende cliente final num caos:
 
 ## 2. A nossa visão
 
-DeskcommCRM é a plataforma onde:
+Striva Sales é a plataforma onde:
 
 | Atendimento | Tecnologia | Compliance |
 |---|---|---|
@@ -289,6 +289,6 @@ Adotamos integralmente o **bundle herdado** da referência *Aula CRM Nichado WAH
 
 📧 rafael@maudibrasil.com.br
 📍 São Paulo, BR
-🔗 docs: github.com/melgarafael/DeskcommCRM (em breve)
+🔗 docs: github.com/welltonsoaress/striva-sales (destino do repositório Striva Sales)
 
 **Perguntas?**

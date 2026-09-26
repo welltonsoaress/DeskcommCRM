@@ -3,6 +3,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 const postMock = vi.fn();
+vi.mock("@/hooks/auth/AuthProvider", () => ({
+  useAuth: () => ({
+    activeOrg: { orgId: "org-1", role: "admin" },
+    user: { support: false },
+  }),
+}));
 vi.mock("@/lib/api/client", () => ({
   apiClient: { post: (...args: unknown[]) => postMock(...args) },
 }));
@@ -84,7 +90,11 @@ describe("CaseReplyPanel", () => {
         body: "Qual seu CPF?",
       }),
     );
-    await waitFor(() => expect(invalidateSpy).toHaveBeenCalled());
+    await waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["ai-case", "org-1", "case-1"] });
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["ai-cases", "org-1"] });
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["pending-ai-cases", "org-1"] });
+    });
   });
 
   it("erro na mutation chama showApiError", async () => {

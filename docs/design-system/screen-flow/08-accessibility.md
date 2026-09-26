@@ -72,7 +72,7 @@ Toda tela autenticada deve ser navegável **inteiramente** com `Tab` / `Shift+Ta
 5. **Modais**: foco trapped dentro do modal; `Esc` fecha; foco volta pro elemento que abriu
 
 ### Foco visível
-- Anel `ring-2 ring-sage-500 ring-offset-2 ring-offset-background` em todo elemento focável
+- Anel `ring-2 ring-[var(--color-accent-500)] ring-offset-2 ring-offset-background` em todo elemento focável
 - Nunca remover outline com `outline:none` sem substituto visível
 - `focus-visible:` (não `focus:`) pra evitar ring em mouse
 
@@ -110,13 +110,13 @@ Toda tela autenticada deve ser navegável **inteiramente** com `Tab` / `Shift+Ta
 
 ## 4. Contraste
 
-A paleta sage/zinc do design-system base já confirma AA. Validações específicas:
+A paleta violeta/greige do design-system é verificada pela régua de contraste gerada. Validações específicas:
 
 | Combinação | Razão | OK? |
 |---|---|---|
 | Texto principal (`zinc-900`) sobre `background` (`zinc-50`) | 16:1 | ✅ AAA |
 | Texto secundário (`zinc-600`) sobre `background` | 7:1 | ✅ AAA |
-| Texto em botão sage (`white` sobre `sage-600`) | 5.2:1 | ✅ AA |
+| Texto em botão Striva (`white` sobre `accent-600`) | calculado pelo teste de contraste | ✅ gate automatizado |
 | Sentiment baixo (texto branco sobre vermelho) | precisa ≥4.5:1 | confirmar na Spec |
 | Estados disabled | 3:1 mínimo (UI components) | confirmar |
 

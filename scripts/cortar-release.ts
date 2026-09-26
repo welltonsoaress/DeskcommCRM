@@ -20,13 +20,14 @@ import path from "node:path";
 
 import { calcularBump, type Fragmento, parseFragmento, proximaVersao } from "../lib/release/fragmento";
 import { aplicarNoChangelog, montarSecao } from "../lib/release/montar-secao";
+import { DISTRIBUTION_REPOSITORY } from "../lib/system/distribution";
 
 const RAIZ = path.resolve(__dirname, "..");
 const DIR_FRAGMENTOS = path.join(RAIZ, ".changes");
 const CHANGELOG = path.join(RAIZ, "CHANGELOG.md");
-const REPO = "welltonsoaress/DeskcommCRM";
+const REPO = DISTRIBUTION_REPOSITORY;
 
-const compararUrl = (de: string, para: string) => `https://github.com/${REPO}/compare/${de}...${para}`;
+  const compararUrl = (de: string, para: string) => `https://github.com/${REPO}/compare/${de}...${para}`;
 
 /** `.gitkeep` e qualquer não-`.md` ficam de fora; o diretório guarda só fragmento. */
 export function arquivosDeFragmento(dir: string): string[] {
@@ -69,10 +70,10 @@ function versaoBase(changelog: string): string {
 /** Só para conferência: um aviso, nunca uma recusa — o CI clona raso e não vê tag. */
 function maiorTagLocal(): string | null {
   try {
-    const saida = execFileSync("git", ["tag", "--list", "v*.*.*"], { cwd: RAIZ, encoding: "utf8" });
+    const saida = execFileSync("git", ["tag", "--list", "striva-v*.*.*"], { cwd: RAIZ, encoding: "utf8" });
     const versoes = saida
       .split("\n")
-      .map((t) => t.trim().replace(/^v/, ""))
+      .map((t) => t.trim().replace(/^striva-v/, ""))
       .filter((t) => /^\d+\.\d+\.\d+$/.test(t))
       .sort((a, b) => {
         const [A, B] = [a.split(".").map(Number), b.split(".").map(Number)];

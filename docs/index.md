@@ -1,6 +1,6 @@
 ---
 type: index
-project: DeskcommCRM
+project: Striva Sales
 status: draft
 last_updated: 2026-07-29
 generated_by: auditoria documental (Claude Code)
@@ -8,7 +8,7 @@ confidence: alta (inventário de arquivos é CONFIRMADO; agrupamento temático �
 audited_against: origin/main @ 789dfa6 (v1.0.0, 2026-07-27)
 ---
 
-# Índice da documentação — DeskcommCRM
+# Índice da documentação — Striva Sales
 
 Mapa dos **154** arquivos `.md` de `docs/`, espalhados por **20** subpastas — medido em
 2026-08-14, com as réguas ao lado: `git ls-files 'docs/**/*.md' | wc -l` e
@@ -105,8 +105,8 @@ Detalham schema SQL e payloads exatos. **Consulte antes de modelar qualquer cois
 ## 5. Design system
 
 [`design-system/README.md`](design-system/README.md) é o ponto de entrada (v1.0, 5 escolhas
-visuais lockadas: paleta Sage, Atkinson Hyperlegible, densidade aerada, Phosphor duotone,
-IBM Plex Mono). Numerados `00`–`09`: overview, tokens, paleta, tipografia, densidade,
+visuais: paleta padrão Violeta Striva baseada em `#7C3AED`, Atkinson Hyperlegible,
+densidade aerada, Phosphor duotone e IBM Plex Mono). Numerados `00`–`09`: overview, tokens, paleta, tipografia, densidade,
 iconografia, componentes, motion, voice & tone, **anti-patterns**.
 Fluxo de tela em `design-system/screen-flow/` (jornadas, clickflows, máquinas de estado,
 acessibilidade).
@@ -122,7 +122,7 @@ acessibilidade).
 | [`ATUALIZANDO.md`](ATUALIZANDO.md) | `update.sh`, `restore.sh`, `healthcheck.sh` |
 | [`runbooks/deploy.md`](runbooks/deploy.md) | **Deploy em produção — os dois `-f` do compose, verificação pós-deploy** |
 | [`runbooks/remediar-worker-congelado.md`](runbooks/remediar-worker-congelado.md) | **Incidente: o worker congelado** — diagnóstico (`diagnostico.sh`), impacto medido e as duas rotas de remediação. **Ainda não ensaiado** |
-| [`runbooks/ativar-packaging.md`](runbooks/ativar-packaging.md) | **Ativação da doutrina de packaging** — os 3 passos que não cabem num PR (pacote público, check obrigatório, primeira release) |
+| [`runbooks/ativar-packaging.md`](runbooks/ativar-packaging.md) | **Disponibilizar a distribuição Striva** — repositório, checks, imagens, primeira release e ensaio da instalação |
 | [`runbooks/custo-e-cota-do-supabase.md`](runbooks/custo-e-cota-do-supabase.md) | **“Meu Supabase estourou a cota”** — como medir a origem do consumo, os dois intervalos da fila e as duas tabelas que só crescem |
 | [`runbooks/waha-hostgator.md`](runbooks/waha-hostgator.md) | Runbook do WAHA em produção |
 | [`runbooks/cloudpanel.md`](runbooks/cloudpanel.md) | **VPS que já tem CloudPanel/Nginx nas portas 80/443** — o modo proxy externo do kit, o endereço fixo para o Nginx do host e o 403 do webhook global |

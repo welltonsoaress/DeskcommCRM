@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# DeskcommCRM — instalador self-host para VPS (HostGator).
+# Striva Sales — instalador self-host para VPS.
 #
 # Idempotente: pode rodar de novo sem estragar nada. Dependências no host:
 # só docker, docker compose, git, openssl, curl. psql/bootstrap rodam via Docker.
@@ -15,10 +15,11 @@ set -euo pipefail
 # de qualquer 'cd' (step 2 pode entrar num repo clonado à parte).
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 
-REPO_URL="${REPO_URL:-https://github.com/welltonsoaress/DeskcommCRM.git}"
-SUPORTE_URL="https://github.com/welltonsoaress/DeskcommCRM/issues"
-VERSOES_URL="https://github.com/welltonsoaress/DeskcommCRM/releases"
-REPO_DIR="${REPO_DIR:-deskcommcrm}"
+source "$KIT_DIR/distribution.env"
+REPO_URL="${REPO_URL:-https://github.com/${DISTRIBUTION_REPOSITORY}.git}"
+SUPORTE_URL="https://github.com/${DISTRIBUTION_REPOSITORY}/issues"
+VERSOES_URL="https://github.com/${DISTRIBUTION_REPOSITORY}/releases"
+REPO_DIR="${REPO_DIR:-striva-sales}"
 COMPOSE="docker-compose.prod.yml"
 COMPOSE_TRAEFIK="docker-compose.traefik.yml"
 NONINTERACTIVE=0
@@ -91,38 +92,9 @@ fase() { printf '\n'; paint 1 "━━━ Fase $1/$FASE_TOTAL · $2"; }
 # fundo escuro quanto claro, sem precisar detectar o tema — uma cor de acento
 # clara sumiria no branco de quem usa terminal claro.
 #
-# A pintura é por substituição literal de string (${x//…}), não por classe de
-# caractere em sed/awk: sob LC_ALL=C essas ferramentas tratam a entrada como
-# BYTES, e todos esses glifos começam com 0xE2 — uma classe [╗║…] casaria
-# pedaço de █ e embaralharia o desenho na VPS de quem roda em locale C.
-LOGO_COLS=71
 banner() {
-  local cols linha ch
-  cols="$(tput cols 2>/dev/null || echo 80)"
-  case "$cols" in ''|*[!0-9]*) cols=80;; esac
   printf '\n'
-  # Terminal estreito recebe a versão de uma linha: logo quebrado no meio é
-  # pior do que logo nenhum.
-  if [ "$COLOR" != 1 ] || [ "$cols" -lt $((LOGO_COLS + 2)) ]; then
-    paint 1 "  DESKCOMM"
-  else
-    # Tela limpa: tira o ruído do clone/apt de cima do logo. Exige TTY de
-    # verdade (não basta COLOR=1): com FORCE_COLOR numa saída redirecionada, um
-    # "limpe a tela" no meio do arquivo é lixo que ninguém pediu.
-    [ -t 1 ] && printf '\033[2J\033[H'
-    while IFS= read -r linha; do
-      linha="${linha//█/$'\033[32m'█$'\033[0m'}"
-      for ch in ═ ╗ ║ ╝ ╚ ╔; do linha="${linha//$ch/$'\033[2m'$ch$'\033[0m'}"; done
-      printf '  %s\n' "$linha"
-    done <<'LOGO'
-██████╗ ███████╗███████╗██╗  ██╗ ██████╗ ██████╗ ███╗   ███╗███╗   ███╗
-██╔══██╗██╔════╝██╔════╝██║ ██╔╝██╔════╝██╔═══██╗████╗ ████║████╗ ████║
-██║  ██║█████╗  ███████╗█████╔╝ ██║     ██║   ██║██╔████╔██║██╔████╔██║
-██║  ██║██╔══╝  ╚════██║██╔═██╗ ██║     ██║   ██║██║╚██╔╝██║██║╚██╔╝██║
-██████╔╝███████╗███████║██║  ██╗╚██████╗╚██████╔╝██║ ╚═╝ ██║██║ ╚═╝ ██║
-╚═════╝ ╚══════╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚═╝     ╚═╝
-LOGO
-  fi
+  paint 1 "  STRIVA SALES"
   printf '\n'
   c_dim "  Agentes de IA que atendem no WhatsApp, dentro do seu CRM."
   c_dim "  Open-source · roda no seu servidor · os dados são seus."
@@ -199,7 +171,7 @@ v_email() {
 # amanhã não vire uma instalação travada em quem não quer cor nenhuma.
 v_hex() {
   case "$1" in ''|'#'[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]) return 0;; esac
-  echo "Use um código de cor como #7a5cd6 — cerquilha e 6 dígitos —, ou Enter para a cor do sistema"
+  echo "Use um código de cor como #7c3aed — cerquilha e 6 dígitos —, ou Enter para a cor do sistema"
   return 1
 }
 
@@ -1013,9 +985,9 @@ e, se for mesmo um Traefik, ponha REVERSE_PROXY=traefik no .env e rode de novo."
     # à instalação que está no ar — foi assim que uma aula subiu por cima de uma
     # produção. Aqui o nome das DUAS pastas aparece.
     if [ -n "$dono_arvore" ] && [ "$dono_projeto" = "$proj_atual" ] && [ "$dono_arvore" != "$_minha_arvore" ]; then
-      c_red "✖ Já existe um DeskcommCRM NO AR nesta VPS, instalado em ${dono_arvore}."
+      c_red "✖ Já existe outra instalação no ar nesta VPS, em ${dono_arvore}."
       printf '\n%s\n'   "  Esta pasta (${_minha_arvore}) é outra cópia do repo. As duas se chamam"
-      printf '%s\n'     "  DeskcommCRM, então o Docker dá às duas o MESMO nome de projeto"
+      printf '%s\n'     "  Striva Sales, então o Docker dá às duas o MESMO nome de projeto"
       printf '%s\n\n'   "  ('${proj_atual}') — e instalar aqui recriaria os contêineres daquela."
       printf '%s\n'     "  Na prática: o CRM que está no ar passaria a rodar com o .env DESTA pasta"
       printf '%s\n\n'   "  (outro banco, outras chaves), e as conexões de WhatsApp cairiam."
@@ -1023,8 +995,8 @@ e, se for mesmo um Traefik, ponha REVERSE_PROXY=traefik no .env e rode de novo."
       printf '%s\n\n'   "       cd ${dono_arvore} && bash hostgator-setup-kit/update.sh"
       printf '%s\n'     "  Quer mesmo uma SEGUNDA instalação nesta VPS? Ela precisa de nome de"
       printf '%s\n'     "  projeto e domínio próprios — ponha no .env desta pasta, antes de rodar:"
-      printf '%s\n\n'   "       COMPOSE_PROJECT_NAME=deskcomm-$(basename "${_minha_arvore}" | tr 'A-Z' 'a-z')-2"
-      die "Instalação interrompida para não derrubar o DeskcommCRM que está no ar em ${dono_arvore}."
+      printf '%s\n\n'   "       COMPOSE_PROJECT_NAME=striva-$(basename "${_minha_arvore}" | tr 'A-Z' 'a-z')-2"
+      die "Instalação interrompida para não derrubar o sistema que está no ar em ${dono_arvore}."
     fi
     # Concordância com o número de portas: "A porta 80 e 443 já está ocupada"
     # saiu na prova real e denuncia texto montado sem olhar o próprio dado.
@@ -1036,7 +1008,7 @@ e, se for mesmo um Traefik, ponha REVERSE_PROXY=traefik no .env e rode de novo."
     printf '\n%s\n'   "  O CRM precisa dessas duas portas para publicar o site com HTTPS. Subir um"
     printf '%s\n\n'   "  segundo proxy nelas não funciona: o Docker recusa e a instalação para."
     printf '%s\n'     "  Como resolver, na ordem do mais provável:"
-    printf '\n%s\n'   "  1. Já é outro DeskcommCRM neste servidor? Então use aquele — entre na"
+    printf '\n%s\n'   "  1. Já existe outra instalação neste servidor? Então use aquela — entre na"
     printf '%s\n'     "     pasta dele e rode: bash hostgator-setup-kit/update.sh"
     printf '\n%s\n'   "  2. Não usa mais o que está ocupando? Desligue e rode este instalador de novo:"
     [ -n "$dono_portas" ] && printf '%s\n' "       docker stop ${dono_portas}"
@@ -1081,7 +1053,7 @@ fi
 # colar. Sem o token, nada muda: seguem as perguntas de sempre.
 if [ -z "${NEXT_PUBLIC_SUPABASE_URL:-}" ] && [ -n "${SUPABASE_ACCESS_TOKEN:-}" ]; then
   step "Criando o projeto Supabase automaticamente"
-  _sb_out="$(bash "$KIT_DIR/supabase-provision.sh" "${APP_NAME:-DeskcommCRM}" "${SUPABASE_REGION:-sa-east-1}")" \
+  _sb_out="$(bash "$KIT_DIR/supabase-provision.sh" "${APP_NAME:-Striva Sales}" "${SUPABASE_REGION:-sa-east-1}")" \
     || die "Não consegui criar o projeto Supabase. Crie no painel e rode de novo sem SUPABASE_ACCESS_TOKEN."
   # O script imprime `CHAVE='valor'` em stdout (o visual dele vai para stderr).
   # A leitura é por parse, não por `eval` — o porquê está em
@@ -1188,45 +1160,11 @@ fi
 # que a versão não era nomeável.
 #
 # Resolvido no REMOTO porque o clone é `--depth 1` e não traz tag nenhuma.
-VERSAO_ALVO="$(ultima_versao_publicada "$REPO_URL")"
-
-# A tag do git é condição NECESSÁRIA, não suficiente: ela nasce minutos antes
-# das imagens, e `deskcomm-worker`/`deskcomm-scheduler` só passaram a existir
-# depois das releases que já estão publicadas — `deskcomm-worker:1.2.1` nunca
-# vai existir, porque a v1.2.1 é passado. Sem esta conferência, o .env do
-# cliente receberia duas referências impossíveis e o kit as construiria aqui em
-# silêncio, do topo da main: app de uma release + worker de outro código.
-#
-# Cascata, do mais específico ao mais disponível. Cada nível pergunta pelas TRÊS
-# imagens juntas, porque instalar com elas desalinhadas é o defeito, não a
-# solução.
-if [ -n "$VERSAO_ALVO" ] && trio_publicado "$VERSAO_ALVO"; then
-  : # o caminho normal: as três publicadas na última versão
-elif trio_publicado "stable"; then
-  c_ylw "⚠ A versão ${VERSAO_ALVO:-mais recente} ainda não tem as três imagens publicadas."
-  c_ylw "  Instalando pelo canal 'stable' (a última versão completa)."
-  VERSAO_ALVO="stable"
-elif [ -n "$VERSAO_ALVO" ]; then
-  # Nem a versão nem o `stable` têm o trio. Segue assim mesmo — o compose tem
-  # `build:` ao lado do `image:` do worker e do scheduler, então eles são
-  # construídos aqui. É lento, mas instala. O que NÃO pode é isso acontecer
-  # calado: o dono precisa saber que duas peças dele saíram do fonte local.
-  c_ylw "⚠ As imagens do worker e do agendador ainda não estão publicadas."
-  c_ylw "  Elas serão construídas neste servidor — leva alguns minutos a mais."
-  c_ylw "  Rode 'bash hostgator-setup-kit/update.sh' quando a próxima versão sair."
-else
-  # Falha ABERTA: sem rede ou sem tag no remoto, segue como antes. Travar a
-  # instalação por não resolver um número seria trocar previsibilidade por
-  # disponibilidade — mas o aviso sai, porque o dono precisa saber que ficou
-  # num canal móvel em vez de numa versão.
-  VERSAO_ALVO="latest"
-  c_ylw "⚠ Não consegui descobrir a última versão publicada (rede?)."
-  c_ylw "  Instalando pelo canal 'latest'. Depois rode: bash hostgator-setup-kit/update.sh"
-  if ! trio_publicado "latest"; then
-    c_ylw "⚠ As imagens :latest não estão acessíveis no registry (ausentes, privadas ou sem rede)."
-    c_ylw "  Se continuar, elas poderão ser construídas neste servidor — confirme o GHCR antes de instalar."
-  fi
-fi
+VERSAO_ALVO="$(ultima_versao_publicada)"
+[ -n "$VERSAO_ALVO" ] || die "Não consegui confirmar uma release estável do Striva Sales com as três imagens públicas. Confira a conexão e tente novamente; a instalação não fará build na VPS nem usará versões de outro repositório."
+TAG_DISTRIBUICAO="${DISTRIBUTION_RELEASE_TAG_PREFIX}${VERSAO_ALVO}"
+release_publicada "$TAG_DISTRIBUICAO" || die "A release $TAG_DISTRIBUICAO não está publicada como estável no repositório $DISTRIBUTION_REPOSITORY."
+trio_publicado "$VERSAO_ALVO" || die "A release $TAG_DISTRIBUICAO ainda não tem as três imagens acessíveis. Nenhum serviço foi criado."
 IMAGEM_APP_DEFAULT="${IMG_APP}:${VERSAO_ALVO}"
 
 FIELDS=(
@@ -1251,7 +1189,7 @@ FIELDS=(
   ${CAMPO_OPENAI_EXTRA:+"$CAMPO_OPENAI_EXTRA"}
   "OWNER_EMAIL|E-mail do primeiro admin (dono)||v_email||"
   "OWNER_PASSWORD|Senha do primeiro admin (mínimo 8 caracteres)||v_password|secret|"
-  "APP_NAME|Nome que aparece na interface (Enter para o padrão)|DeskcommCRM|||"
+  "APP_NAME|Nome que aparece na interface (Enter para o padrão)|Striva Sales|||"
   # Idioma da instalação. Fica JUNTO do nome do produto de propósito: as duas
   # perguntas são "como o sistema se apresenta", e separá-las faria a segunda
   # parecer configuração técnica.
@@ -1260,7 +1198,7 @@ FIELDS=(
   # variável (campo sem default e sem `opcional` morre em `die`), e o `envq` lá
   # embaixo usa `${APP_ACCENT_HEX:-}`. Enter = a cor do produto, que é o
   # comportamento de sempre para quem não tem marca própria.
-  "APP_ACCENT_HEX|Cor da sua marca em hex, ex.: #7a5cd6 (Enter usa a cor do sistema)||v_hex||opcional"
+  "APP_ACCENT_HEX|Cor da sua marca em hex, ex.: #7c3aed (Enter usa a cor do sistema)||v_hex||opcional"
   "SUPPORT_EMAIL|E-mail de suporte que SEUS clientes veem (Enter pula)||v_email||opcional"
   "RESEND_API_KEY|Chave da Resend — envia convite e e-mail de LGPD (resend.com/api-keys, Enter pula)|||secret|opcional"
   "RESEND_FROM_EMAIL|Remetente dos e-mails, de um domínio verificado na Resend (Enter pula)||v_email||opcional"
@@ -1486,39 +1424,16 @@ if [ -f .env ]; then
   fi
 fi
 
-# A tag que o dono escolheu (o campo APP_IMAGE é editável na entrevista) decide
-# o pull_policy das três imagens. A regra é medida, não estética: com `always` e
-# o registry sem responder para aquela referência, o `up -d` FALHA e o contêiner
-# não sobe, mesmo com a imagem já no disco. Numa tag imutável isso não protege
-# de nada — só amarra a subida do CRM à disponibilidade do GHCR. Numa tag móvel
-# é o contrário: sem `always`, a versão nova nunca chega.
-# Olha só o último segmento do caminho: `registry.local:5000/x/y` tem ':' e NÃO
-# tem tag, e um `${APP_IMAGE##*:}` ingênuo devolveria "5000/x/y" como se fosse
-# uma. Um `@sha256:...` cai aqui como tag imutável, que é o correto.
-_ref_final="${APP_IMAGE##*/}"
-case "$_ref_final" in
-  *@sha256:*)
-    # O operador pinou o app por DIGEST. Derivar a tag daí produziria
-    # `deskcomm-worker:<hash-do-app>` — uma referência que não existe em lugar
-    # nenhum, e o `pull` falharia com "manifest unknown" sem ninguém entender
-    # por quê. Worker e scheduler vão para o canal estável, e o aviso sai porque
-    # quem pinou por digest tinha um motivo e precisa saber que ele não se
-    # propagou às outras duas.
-    TAG_ALVO="stable"
-    c_ylw "⚠ APP_IMAGE está pinado por digest."
-    c_ylw "  O worker e o scheduler ficam em 'stable' — ajuste WORKER_IMAGE/SCHEDULER_IMAGE"
-    c_ylw "  no .env se você precisa deles num digest específico também."
-    ;;
-  *:*) TAG_ALVO="${_ref_final##*:}" ;;
-  *)   TAG_ALVO="latest" ;;   # imagem sem ':' é :latest por definição do Docker
-esac
-case "$TAG_ALVO" in
-  latest|main|stable) PULL_POLICY_ALVO="always" ;;
-  *)                  PULL_POLICY_ALVO="missing" ;;
-esac
+# Todas as peças vêm da mesma release imutável. APP_IMAGE continua na entrevista
+# por compatibilidade com `.env` existentes, mas não pode desviar da distribuição.
+APP_IMAGE="${APP_IMAGE:-$IMAGEM_APP_DEFAULT}"
+[ "$APP_IMAGE" = "$IMAGEM_APP_DEFAULT" ] || die "APP_IMAGE deve apontar para ${IMAGEM_APP_DEFAULT}; a instalação usa somente imagens oficiais desta release Striva."
+TAG_ALVO="$VERSAO_ALVO"
+PULL_POLICY_ALVO=missing
 
 {
   printf '# Gerado por install.sh — NÃO comitar. Contém segredos.\n'
+  envq COMPOSE_PROJECT_NAME "${COMPOSE_PROJECT_NAME:-$(printf '%s' "$(basename "$PROJECT_DIR")" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9_-')}"
   envq APP_IMAGE "$APP_IMAGE"
   envq APP_PULL_POLICY "$PULL_POLICY_ALVO"
   # Worker e scheduler acompanham a MESMA versão do app: um em 1.2.1 e outro em
@@ -1693,6 +1608,16 @@ chmod 600 .env
 # correção que alguém fizer no .env.
 rm -f "$PARTIAL_FILE"
 c_grn "✓ .env escrito (permissão 600)"
+
+# Baixa todas as imagens antes de tocar no banco ou criar/recriar serviços.
+# A checagem pública do GHCR acima prova que os três pacotes existem; o pull
+# prova também que esta VPS consegue baixá-los com sua configuração atual.
+# Falha aqui deixa a instalação e o banco como estavam, sem fallback para build.
+step "Baixando e validando as imagens antes de alterar o banco"
+if ! dc pull; then
+  die "Não consegui baixar todas as imagens da instalação. O banco e os serviços não foram alterados. Confira a conexão e o acesso ao registro, depois tente novamente."
+fi
+c_grn "✓ imagens da release baixadas antes de alterar o banco."
 
 # ── 6. Checagem de DNS ──────────────────────────────────────────────────────
 fase 3 "Banco de dados e domínio"
@@ -2014,22 +1939,9 @@ SQL
 # ── 9. Sobe a stack ─────────────────────────────────────────────────────────
 fase 4 "Colocando o CRM no ar"
 step "Puxando a imagem e subindo os serviços"
-# A guarda existe porque dar `image:` a um serviço que era build-only mudou o
-# comportamento do `pull`: antes ele PULAVA o worker ("Skipped - No image to be
-# pulled"), agora FALHA a operação inteira se a referência não resolver. E há
-# três motivos reais para não resolver logo depois de um release: pacote novo no
-# GHCR nasce PRIVADO até alguém trocar a visibilidade na mão; a tag git existe
-# minutos antes das imagens; e o GHCR pode estar fora do ar.
-#
-# Sem esta guarda, uma instalação NOVA morria no passo 9 — com o banco já
-# provisionado e o .env já escrito. O `up -d` seguinte não precisa do pull: o
-# worker e o scheduler têm `build:` ao lado do `image:`, e o Compose os constrói
-# quando a imagem não existe (medido).
-if ! dc pull; then
-  c_ylw "⚠ Não consegui puxar todas as imagens do registro."
-  c_ylw "  Sigo assim mesmo: o que faltar é construído aqui (mais lento, mesmo resultado)."
-fi
-dc up -d
+# Imagens já baixadas e validadas antes do schema. `--no-build` torna explícito
+# que uma VPS nunca compila artefatos locais quando uma referência falha.
+dc up -d --no-build
 c_grn "✓ containers no ar"
 
 # ── 10. Healthcheck ─────────────────────────────────────────────────────────

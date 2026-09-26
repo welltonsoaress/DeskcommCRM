@@ -1,4 +1,4 @@
-# DeskcommCRM self-hosted — instalação em VPS (com agente de IA)
+# Striva Sales self-hosted — instalação em VPS (com agente de IA)
 
 > Sistema operacional de vendas open source com agente SDR de IA integrado
 > (WhatsApp via WAHA) — pra qualquer negócio que vende conversando.
@@ -23,7 +23,7 @@
 ## 1. Clonar e configurar
 
 ```bash
-git clone https://github.com/welltonsoaress/DeskcommCRM.git && cd DeskcommCRM
+git clone https://github.com/welltonsoaress/striva-sales.git && cd striva-sales
 cp .env.hostgator.example .env   # o template de produção (o .env.example é o de dev)
 ```
 
@@ -131,9 +131,9 @@ lá, foi você que pôs.
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-> A imagem do app vem pronta do GHCR (`APP_IMAGE` no .env). Para buildar
-> localmente (fork/sem registry): adicione `-f docker-compose.build.yml` e
-> rode `... build` antes do `up` (precisa de ≥4 GB RAM; ~15-25 min).
+> As três imagens vêm prontas do GHCR e ficam fixadas na versão da release própria
+> (`striva-vX.Y.Z`). Não construa imagens na VPS: se a publicação estiver incompleta,
+> o instalador ou atualizador interrompe a operação sem recriar os serviços.
 
 Sobe: `caddy` (HTTPS automático via Let's Encrypt) → `app` (CRM) → `worker`
 (agente 24/7) → `waha` (WhatsApp) → `redis`/`srh` → `scheduler` (crons).
@@ -257,7 +257,8 @@ conta própria — num caminho HTTP seu, nunca como caminho de arquivo.
   (`FLYWHEEL_INTERVAL_MS`) e grava PROPOSTAS de melhoria de prompt em
   `flywheel_distiller_proposals`. Nada é aplicado sozinho: revise e cole o
   bullet no prompt do agente na tela, publicando uma versão nova.
-- **Atualizar**: `bash hostgator-setup-kit/update.sh` — ele puxa a tag publicada,
+- **Atualizar**: `bash hostgator-setup-kit/update.sh` — ele consulta releases `striva-v*` do
+  repositório próprio, baixa e valida as três imagens antes de tocar no banco,
   re-aplica o `baseline.sql` (idempotente), sobe e faz backup antes. Não use
   `up -d --build`: isso reconstrói na sua máquina em vez de puxar a imagem
   testada, e **numa VPS com proxy reverso próprio o `up -d` precisa dos dois

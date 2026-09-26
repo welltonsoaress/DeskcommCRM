@@ -1,6 +1,6 @@
 # Mapa de Jornadas & Testes E2E — Experiência do usuário em VPS fresca
 
-> Fonte da verdade do QA de produto do DeskcommCRM open-source. Cada caso aqui é
+> Fonte da verdade do QA de produto do Striva Sales open-source. Cada caso aqui é
 > exercitado **pelo frontend real** (Playwright), com contas de teste reais e
 > recursos reais (banco fresco do `baseline.sql`, WAHA local, receiver de webhook
 > real). Curl/API só como diagnóstico, nunca como prova de UX.
@@ -880,7 +880,8 @@ Critério: nenhuma tela quebra, nenhum stack trace, nenhum texto de erro cru.
 Ambiente: VPS HostGator (143.95.209.17), domínio `test-crm.vidagamificada.com.br`,
 projeto Supabase **novo e virgem** (0 tabelas / 0 usuários / 0 buckets antes de cada
 instalação), cache de build do Docker zerado (a VPS realmente compila o worker),
-imagem `ghcr.io/melgarafael/deskcommcrm:latest` — a mesma que o comprador recebe.
+imagem legada `ghcr.io/melgarafael/deskcommcrm:latest`, usada naquele ensaio de
+2026-07-29; ela não representa a distribuição Striva atual.
 
 Duas instalações completas do zero: a primeira para achar defeitos, a segunda
 (após todas as correções publicadas na `main`) como prova. Entre elas, o banco
@@ -1276,7 +1277,7 @@ curl -s -o /dev/null -w '%{http_code}\n' https://<DOMAIN>/
 
 | # | Caso | O que conferir | Como |
 |---|---|---|---|
-| `J10.1` | **Aba** — quem abre o domínio vê o nome do revendedor | O `<title>` contém `Vendas Turbo` e **não** contém `Deskcomm` | `curl -s https://<DOMAIN>/login \| grep -o '<title>[^<]*</title>'` |
+| `J10.1` | **Aba** — quem abre o domínio vê o nome do revendedor | O `<title>` contém `Vendas Turbo` e não revela a marca padrão do produto | `curl -s https://<DOMAIN>/login \| grep -o '<title>[^<]*</title>'` |
 | `J10.2` | **Ícone** — o favicon carrega **deslogado**, na cor do revendedor | `/icon` responde 200 e o SVG tem o accent DERIVADO (não a semente crua) | `curl -s -o /dev/null -w '%{http_code}\n' https://<DOMAIN>/icon` e abrir a aba no browser |
 | `J10.3` | **E-mail de acesso** — o "confirme sua conta" do GoTrue chega com a marca | Rodar `bash marca-emails.sh` e conferir na caixa real. **Sem `SUPABASE_ACCESS_TOKEN`, o script imprime o passo manual e a instalação segue** — esse ramo também é PASS, e é o caminho da maioria | caixa de entrada de verdade, não log |
 | `J10.4` | **Convite** — sem `RESEND_API_KEY`, a tela mostra o `accept_url` em vez de falhar calada | `/app/team/invite` → convidar → a tela exibe o link | pela tela |

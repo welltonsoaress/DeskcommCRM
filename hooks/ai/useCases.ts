@@ -1,6 +1,37 @@
 "use client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
+import { useAuth } from "@/hooks/auth/AuthProvider";
+import { ROLE_RANK } from "@/lib/auth/types";
+
+export interface PendingCase {
+  id: string;
+  opened_at: string;
+  /** Muda apenas quando o caso entra (ou retorna) a awaiting_human. */
+  awaiting_human_at: string;
+}
+
+export function usePendingCases() {
+  const { activeOrg, user } = useAuth();
+  const organizationId = activeOrg?.orgId ?? null;
+  const role = activeOrg?.role ?? null;
+  const allowed =
+    !!organizationId && !!role && !user.support && ROLE_RANK[role] >= ROLE_RANK.agent;
+
+  return useQuery({
+    queryKey: ["pending-ai-cases", organizationId],
+    enabled: allowed,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+    retry: false,
+    queryFn: () =>
+      apiClient
+        .get<{ data: { pending_cases: PendingCase[]; pending_count: number } }>(
+          "/api/v1/ai/cases/pending",
+        )
+        .then((r) => r.data),
+  });
+}
 
 /** Espelha o CHECK de agent_cases.status (migration 0066, spec 15 §7). */
 export type CaseStatus = "awaiting_human" | "awaiting_lead" | "resolved" | "escalated" | "cancelled";
@@ -68,8 +99,11 @@ export interface CaseDetailData {
 
 /** Lista de casos humanos (spec 15 §9). Polling 60s — casos nascem no worker. */
 export function useCases(status: "open" | "resolved" = "open") {
+  const { activeOrg } = useAuth();
+  const organizationId = activeOrg?.orgId ?? null;
   return useQuery({
-    queryKey: ["ai-cases", status],
+    queryKey: ["ai-cases", organizationId, status],
+    enabled: organizationId !== null,
     refetchInterval: 60_000,
     queryFn: () =>
       apiClient.get<{ data: CaseListData }>(`/api/v1/ai/cases?status=${status}`).then((r) => r.data),
@@ -77,9 +111,11 @@ export function useCases(status: "open" | "resolved" = "open") {
 }
 
 export function useCase(id: string | null) {
+  const { activeOrg } = useAuth();
+  const organizationId = activeOrg?.orgId ?? null;
   return useQuery({
-    queryKey: ["ai-case", id],
-    enabled: id !== null,
+    queryKey: ["ai-case", organizationId, id],
+    enabled: id !== null && organizationId !== null,
     refetchInterval: 60_000,
     queryFn: () => apiClient.get<{ data: CaseDetailData }>(`/api/v1/ai/cases/${id}`).then((r) => r.data),
   });
@@ -87,14 +123,17 @@ export function useCase(id: string | null) {
 
 export function useReplyCase() {
   const qc = useQueryClient();
+  const { activeOrg } = useAuth();
+  const organizationId = activeOrg?.orgId ?? null;
   return useMutation({
     mutationFn: ({ id, action, body }: { id: string; action: CaseHumanAction; body: string }) =>
       apiClient
         .post<{ data: { status: CaseStatus; delivery?: "service_stale" } }>(`/api/v1/ai/cases/${id}/reply`, { action, body })
         .then((r) => r.data),
     onSettled: (_data, _err, vars) => {
-      qc.invalidateQueries({ queryKey: ["ai-case", vars.id] });
-      qc.invalidateQueries({ queryKey: ["ai-cases"] });
+      qc.invalidateQueries({ queryKey: ["ai-case", organizationId, vars.id] });
+      qc.invalidateQueries({ queryKey: ["ai-cases", organizationId] });
+      qc.invalidateQueries({ queryKey: ["pending-ai-cases", organizationId] });
     },
   });
 }
