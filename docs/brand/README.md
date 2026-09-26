@@ -27,6 +27,26 @@ O violeta-base é `#7C3AED`; a escala completa para temas claro e escuro está e
 seus significados próprios. `app/design/lib/tokens.ts` apresenta a mesma escala
 no showcase de design.
 
+## Capturas históricas
+
+Estas imagens registram telas da identidade anterior à Striva Sales. Elas são
+referência histórica de QA, não representam o logotipo nem a paleta atuais. A
+identidade atual está nos SVGs listados acima.
+
+| Captura | Registro |
+|---|---|
+| `evidence/marca/crm-login-claro.png` | Login com a marca anterior, tema claro. |
+| `evidence/marca/crm-login-escuro.png` | Login com a marca anterior, tema escuro. |
+| `evidence/marca/crm-sidebar-aberta.png` | Sidebar expandida com a marca anterior. |
+| `evidence/marca/crm-sidebar-aberta-escura.png` | Sidebar expandida no tema escuro. |
+| `evidence/marca/crm-sidebar-recolhida.png` | Sidebar recolhida com o símbolo anterior. |
+| `evidence/marca/crm-sidebar-recolhida-escura.png` | Sidebar recolhida no tema escuro. |
+| `evidence/marca/favicon-produto.png` | Favicon gerado pela identidade anterior. |
+| `evidence/marca/crm-login-revendedor.png` | Controle negativo da marca configurada pelo revendedor. |
+| `evidence/marca/favicon-revendedor.png` | Controle negativo do favicon com marca própria. |
+| `evidence/marca/lp-cabecalho.png` | Cabeçalho histórico do site de apresentação. |
+| `evidence/marca/lp-rodape.png` | Rodapé histórico do site de apresentação. |
+
 ## Cartão social
 
 `og-card.html` é a fonte do PNG 1280×640. Para regenerá-lo após uma mudança:

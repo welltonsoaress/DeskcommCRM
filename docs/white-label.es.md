@@ -1,4 +1,4 @@
-<!-- traduzido-de: docs/white-label.md@e1d374bb48e0 -->
+<!-- traduzido-de: docs/white-label.md@a545d98dad50 -->
 
 [🇧🇷 Português](white-label.md) · [🇺🇸 English](white-label.en.md) · 🇪🇸 Español
 
@@ -38,7 +38,7 @@ APP_ACCENT_HEX=#7C3AED
 
 El `install.sh` pregunta **dos** de ellas y las graba: el `APP_NAME` (Enter mantiene el valor por defecto) y el `APP_ACCENT_HEX` (Enter usa el color del sistema). No pregunta por `APP_LOGO_URL` — el camino normal del logo es subir el archivo desde la pantalla, y esa clave existe para quien prefiera alojarlo por su cuenta.
 
-> El color se pide con validador: solo pasa `#` + 6 dígitos. Es más estrecho de lo que acepta la pantalla, y es a propósito — los **correos de acceso** (confirmación de cuenta y recuperación de contraseña) leen esa clave del `.env`, y solo reconocen esa forma. Un `#abc` o un `7a5cd6` pintaría la interfaz con tu color y dejaría el verde del producto en el primer correo que abre tu cliente.
+> El color se pide con validador: solo pasa `#` + 6 dígitos. Es más estrecho de lo que acepta la pantalla, y es a propósito — los **correos de acceso** (confirmación de cuenta y recuperación de contraseña) leen esa clave del `.env`, y solo reconocen esa forma. Un `#abc` o un `7a5cd6` pintaría la interfaz con tu color y dejaría el violeta del producto en el primer correo que abre tu cliente.
 
 > ⚠️ **Cambiar el color por la pantalla después NO reescribe los correos de acceso.** Su texto vive dentro de Supabase (GoTrue), no en el CRM, y quien lo empuja hasta allí es el `marca-emails.sh` — que lee el **`.env`**, no la base de datos. Para que los correos acompañen un color cambiado en `/admin/marca`: ajusta también el `APP_ACCENT_HEX` en el `.env` y ejecuta `bash hostgator-setup-kit/marca-emails.sh`. Por eso importa la entrevista del instalador: es el único momento en que las dos puntas nacen iguales sin que nadie necesite saber esto.
 

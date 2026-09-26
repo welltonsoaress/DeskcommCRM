@@ -20,6 +20,10 @@ vi.mock("@/hooks/inbox/useMessageTemplates", () => ({
 vi.mock("@/hooks/inbox/useDraftReply", () => ({
   useDraftReply: () => ({ mutate: vi.fn(), isPending: false }),
 }));
+vi.mock("@/hooks/auth/AuthProvider", () => ({
+  useAuth: () => ({ activeOrg: { orgId: "org-test" } }),
+  usePermission: () => true,
+}));
 
 import { Composer } from "@/components/inbox/Composer";
 
