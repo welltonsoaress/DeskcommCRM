@@ -45,7 +45,7 @@ export function AppShell({ sidebarCollapsed, children }: AppShellProps) {
   // organização esconde imediatamente o aviso anterior sem cascata de state em
   // effect nem possibilidade de exibir uma ocorrência de outra organização.
   const caseNoticeInScope =
-    caseNotice?.scopeKey === occurrenceStorageKey ? caseNotice : null;
+    canReadCases && caseNotice?.scopeKey === occurrenceStorageKey ? caseNotice : null;
 
   const occurrenceWasDismissed = useCallback((key: string) => {
     try {
@@ -76,7 +76,7 @@ export function AppShell({ sidebarCollapsed, children }: AppShellProps) {
   }, [occurrenceStorageKey]);
 
   useEffect(() => {
-    if (!pendingCases.isSuccess) return;
+    if (!canReadCases || !pendingCases.isSuccess) return;
     const rows = pendingCases.data.pending_cases;
     const keys = rows.map((row) => `${row.id}:${row.awaiting_human_at}`);
     const dismissed = dismissalsForActiveCases(keys);
@@ -103,10 +103,13 @@ export function AppShell({ sidebarCollapsed, children }: AppShellProps) {
       ) return current;
       return merged.length > 0 ? { scopeKey: occurrenceStorageKey, keys: merged } : null;
     });
-  }, [pendingCases.isSuccess, pendingCases.data, dismissalsForActiveCases, occurrenceStorageKey]);
+  }, [canReadCases, pendingCases.isSuccess, pendingCases.data, dismissalsForActiveCases, occurrenceStorageKey]);
 
   const handleCaseChange = useCallback((payload: unknown) => {
+    if (!canReadCases) return;
     void queryClient.invalidateQueries({ queryKey: ["pending-ai-cases", organizationId] });
+    void queryClient.invalidateQueries({ queryKey: ["ai-cases", organizationId] });
+    void queryClient.invalidateQueries({ queryKey: ["ai-case", organizationId] });
     if (!payload || typeof payload !== "object") return;
     const event = payload as {
       eventType?: string;
@@ -140,7 +143,7 @@ export function AppShell({ sidebarCollapsed, children }: AppShellProps) {
       scopeKey: occurrenceStorageKey,
       keys: [...new Set([...(current?.scopeKey === occurrenceStorageKey ? current.keys : []), key])],
     }));
-  }, [organizationId, occurrenceStorageKey, occurrenceWasDismissed, queryClient]);
+  }, [canReadCases, organizationId, occurrenceStorageKey, occurrenceWasDismissed, queryClient]);
 
   useRealtimeChannel({
     name: `casos-pendentes:${organizationId ?? "sem-org"}`,
@@ -174,7 +177,7 @@ export function AppShell({ sidebarCollapsed, children }: AppShellProps) {
     );
   }
 
-  const pendingCount = pendingCases.data?.pending_count ?? 0;
+  const pendingCount = canReadCases ? (pendingCases.data?.pending_count ?? 0) : 0;
   useInboundMessageAlerts();
   useCrmAlerts();
   useNotifyOpenFromServiceWorker();

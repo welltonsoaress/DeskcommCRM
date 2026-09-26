@@ -297,6 +297,12 @@ describe("a chamada de ferramenta", () => {
 });
 
 describe("o que o modelo lê", () => {
+  it("explica que uma reserva foi bloqueada, sem sugerir mover o negócio para contornar", () => {
+    const texto = recusaParaOModelo(podeOperarNoFunil([FUNIL_A], FUNIL_B), "crm_book_appointment");
+    expect(texto).toContain("A reserva não foi realizada");
+    expect(texto).toContain("configuração deste assistente");
+    expect(texto).toContain("Não mova o negócio");
+  });
   it("as duas recusas dizem coisas DIFERENTES", () => {
     const vazio = recusaParaOModelo(podeOperarNoFunil([], FUNIL_A));
     const fora = recusaParaOModelo(podeOperarNoFunil([FUNIL_A], FUNIL_B));

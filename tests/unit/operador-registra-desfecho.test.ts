@@ -34,6 +34,8 @@ import {
   apurarComRetorno,
   apuraDonoDaPromessa,
   nomesDasFerramentasChamadas,
+  ferramentasComEscritaConfirmada,
+  desfechoDaExecucao,
 } from "@/lib/agent-engine/agent/operator-turn";
 
 /** O caso base: papel ligado, com mão, rodou, e nada aconteceu. */
@@ -43,6 +45,33 @@ const RODOU_COM_MAO = {
   operadorRodou: true,
   operadorTemFerramentas: true,
 };
+
+describe("execução confirmada do Operador", () => {
+  const outputFor = (toolName: string, output: unknown) => ({
+    result: { steps: [{ toolResults: [{ toolName, output }] }, { toolResults: [] }] },
+  });
+
+  it("não registra ação sem chamada ou apenas com consulta", () => {
+    expect(desfechoDaExecucao(ferramentasComEscritaConfirmada(null)).tipo).toBe("nao_agiu");
+    expect(ferramentasComEscritaConfirmada(outputFor("crm_list_pipelines", { pipelines: [] }))).toEqual([]);
+    expect(ferramentasComEscritaConfirmada({ result: { steps: [{}] } })).toEqual([]);
+  });
+
+  it.each([{ error: "falhou" }, { permitido: false }, { marcado: false },
+    { registrado: false, requer_confirmacao_humana: true }, { encerrado: false }])(
+    "não transforma recusa/erro em ação: %j", (output) => {
+      const escritas = ferramentasComEscritaConfirmada(outputFor("crm_move_lead_stage", output));
+      expect(desfechoDaExecucao(escritas).tipo).toBe("nao_agiu");
+      expect(apuraDonoDaPromessa({ ...RODOU_COM_MAO, ferramentasChamadas: escritas }).assumida).toBe(false);
+    },
+  );
+
+  it("registra escrita concluída no primeiro passo mesmo que o último não tenha ação", () => {
+    const escritas = ferramentasComEscritaConfirmada(outputFor("crm_move_lead_stage", { lead: { id: "lead" } }));
+    expect(escritas).toEqual(["crm_move_lead_stage"]);
+    expect(desfechoDaExecucao(escritas)).toEqual({ tipo: "agiu", ferramentas: 1 });
+  });
+});
 
 describe("apuraDonoDaPromessa — quem ficou responsável", () => {
   it("ferramenta chamada neste turno assume a promessa", () => {

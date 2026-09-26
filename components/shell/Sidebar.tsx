@@ -201,7 +201,9 @@ export function SidebarContent({
         o PR: cada linha custa 32px (28px de altura + 4px de `space-y-1`), e
         trocar N destinos do menu por um único link de hub devolve (N-1)×32px.
       */}
-      <nav className="flex-1 space-y-2 overflow-y-auto p-2" aria-label={t("Navegação principal")}>
+      {/* Casos é acesso essencial. Reduzimos só o intervalo entre grupos;
+          a altura dos alvos de clique permanece igual. A dobra é vigiada no E2E. */}
+      <nav className="flex-1 space-y-1 overflow-y-auto p-2" aria-label={t("Navegação principal")}>
         {grupos.map(({ group, items }) => {
           const tituloId = `nav-grupo-${group.id}`;
           const groupHasCases = items.some((item) => item.href === "/app/ai/cases");

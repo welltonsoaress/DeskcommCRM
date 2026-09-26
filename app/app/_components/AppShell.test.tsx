@@ -119,6 +119,8 @@ describe("avisos de casos na navegação", () => {
       }, { id: CASO_1.id, status: "awaiting_human" }));
     });
     expect(screen.queryByText("Há casos aguardando ação humana")).toBeNull();
+    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["ai-cases", "org-1"] });
+    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["ai-case", "org-1"] });
   });
 
   it("não leva o aviso nem a contagem para outra organização", () => {
@@ -133,6 +135,16 @@ describe("avisos de casos na navegação", () => {
     pendencias([]);
     view.rerender(<AppShell sidebarCollapsed={false}><p>Inbox</p></AppShell>);
 
+    expect(screen.queryByText("Há casos aguardando ação humana")).toBeNull();
+    expect(screen.getByTestId("sidebar-pending-count").textContent).toBe("0");
+  });
+
+  it("esconde pendências em cache ao perder a permissão de atendimento", () => {
+    pendencias([CASO_1]);
+    const view = render(<AppShell sidebarCollapsed={false}><p>Inbox</p></AppShell>);
+    expect(screen.getByText("Há casos aguardando ação humana")).toBeTruthy();
+    mocks.auth.activeOrg.role = "viewer";
+    view.rerender(<AppShell sidebarCollapsed={false}><p>Inbox</p></AppShell>);
     expect(screen.queryByText("Há casos aguardando ação humana")).toBeNull();
     expect(screen.getByTestId("sidebar-pending-count").textContent).toBe("0");
   });

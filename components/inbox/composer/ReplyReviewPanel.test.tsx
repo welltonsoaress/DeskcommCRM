@@ -87,6 +87,18 @@ describe("ReplyReviewPanel", () => {
     });
   });
 
+  it.each(["sent", "dismissed", "stale"])("permite gerar outra sugestão após %s", async (status) => {
+    getMock.mockResolvedValue({ data: { drafts: [{ ...draft, status }] } });
+    postMock.mockResolvedValue({ data: {} });
+    renderPanel();
+    await screen.findByText(status === "sent" ? "Resposta aprovada enviada" :
+      status === "dismissed" ? "Sugestão rejeitada" : "Sugestão obsoleta: a conversa mudou");
+    fireEvent.click(screen.getByRole("button", { name: "Sugerir resposta" }));
+    await waitFor(() => expect(postMock).toHaveBeenCalledWith(
+      "/api/v1/conversations/conversation-1/draft-reply", {},
+    ));
+  });
+
   it("em falha mantém painel e edição para recuperação", async () => {
     postMock.mockRejectedValue(new Error("falha simulada"));
     renderPanel();

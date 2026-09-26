@@ -53,6 +53,7 @@ function ReplyReviewPanelInstance({
     key = ["reply-drafts", organizationId, conversationId];
   const query = useQuery({
     queryKey: key,
+    enabled: organizationId !== null,
     queryFn: () =>
       apiClient.get<{ data: { drafts: Draft[] } }>(
         `/api/v1/conversations/${conversationId}/draft-reply`,
@@ -72,6 +73,7 @@ function ReplyReviewPanelInstance({
   } | null>(null);
   const requestInFlight = useRef(false);
   const draft = query.data?.data.drafts[0];
+  const canReopen = draft && !["sent", "dismissed", "stale"].includes(draft.status);
   const body = draft ? (edits[draft.id] ?? draft.edited_body ?? draft.original_body ?? "") : "";
   async function generate() {
     if (requestInFlight.current) return;
@@ -150,9 +152,9 @@ function ReplyReviewPanelInstance({
           variant="outline"
           size="sm"
           disabled={disabled || busy}
-          onClick={() => (draft ? setExpanded(true) : generate())}
+          onClick={() => (canReopen ? setExpanded(true) : generate())}
         >
-          {t(draft ? "Ver sugestão" : "Sugerir resposta")}
+          {t(canReopen ? "Ver sugestão" : "Sugerir resposta")}
         </Button>
       </section>
     );

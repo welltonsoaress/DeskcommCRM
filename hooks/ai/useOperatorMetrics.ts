@@ -15,6 +15,7 @@ export interface MetricasDoOperador {
   dias: number;
   turnos: number;
   agiu: number;
+  semConfirmacao?: number;
   promessas: { declaradas: number; assumidas: number; semDono: number };
   quisAgirENaoPode: number;
 }

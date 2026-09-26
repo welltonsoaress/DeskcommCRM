@@ -80,23 +80,7 @@ export const ALVO_DE_FUNIL: Record<string, AlvoDeFunil> = {
   crm_schedule_followup: "funil_vem_do_lead",
   crm_cancel_followup: "funil_vem_do_lead",
 
-  // ---- agenda: DECLARADAS `sem_funil`, e a declaração é o ponto ----
-  //
-  // As três operam por `contact_id` (marcar) ou `appointment_id` (remarcar e
-  // cancelar). NENHUMA recebe `lead_id`. Classificá-las `funil_vem_do_lead` seria
-  // TEATRO: o gate procuraria um argumento que nunca vem, cairia no ramo de
-  // "sem lead" e liberaria 100% das vezes — com aparência de escopado. Quem lesse
-  // a tabela concluiria "está protegido" e estaria errado.
-  //
-  // `sem_funil` e `funil_vem_do_lead`-que-nunca-resolve têm comportamento IDÊNTICO
-  // e legibilidade oposta. Declarar o que não protege é o uso correto deste valor,
-  // que existe — nas palavras do próprio tipo — "porque 'não se aplica' e 'ninguém
-  // decidiu' precisam ser distinguíveis".
-  //
-  // Quem limita estas três é o RBAC (agent+ escreve compromisso) e o risco
-  // `critico` do cancelar, que não entra por pacote. O alvo `funil_vem_do_contato`
-  // (DECISÃO 27) fecharia `crm_book_appointment` de verdade, porque ali o
-  // `contact_id` é OBRIGATÓRIO — entra em seguida, com resolvedor próprio.
+  // ---- agenda: reservar resolve o funil pelo contato; as demais por compromisso ----
   // DECISÃO 27: `contact_id` é OBRIGATÓRIO aqui, então o alvo resolve de verdade —
   // diferente de remarcar e cancelar, que operam por `appointment_id` e continuam
   // `sem_funil` declarado enquanto não houver resolvedor por agendamento.
@@ -368,8 +352,14 @@ async function resolverPeloLead(
  * dizer "não é seu" quando o problema é falta de configuração o faria desistir
  * de um caminho que funcionaria assim que alguém marcasse o funil.
  */
-export function recusaParaOModelo(v: VereditoDoEscopo): string | null {
+export function recusaParaOModelo(v: VereditoDoEscopo, ferramenta?: string): string | null {
   if (v.permitido) return null;
+  if (ferramenta === "crm_book_appointment" &&
+      (v.motivo === "escopo_vazio" || v.motivo === "funil_fora_do_escopo")) {
+    return "A reserva não foi realizada: o contato tem um negócio em um funil não liberado para este assistente. " +
+      "Quem administra precisa revisar os funis permitidos na configuração deste assistente ou pedir a uma pessoa para agendar. " +
+      "Não mova o negócio nem tente outra ferramenta para contornar o bloqueio. Não confirme a reserva ao cliente.";
+  }
   switch (v.motivo) {
     case "escopo_vazio":
       return (
@@ -379,7 +369,8 @@ export function recusaParaOModelo(v: VereditoDoEscopo): string | null {
     case "funil_fora_do_escopo":
       return (
         "este negócio está num funil que não é da sua alçada. Você pode conversar sobre ele, " +
-        "mas não alterar o cartão. Não tente por outra ferramenta."
+        "mas não alterar o cartão. Quem administra pode revisar os funis permitidos na configuração deste assistente. " +
+        "Não tente por outra ferramenta."
       );
     case "ferramenta_nao_classificada":
       return "esta capacidade ainda não foi liberada para uso com negócios.";

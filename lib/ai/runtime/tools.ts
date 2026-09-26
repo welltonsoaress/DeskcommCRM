@@ -166,7 +166,7 @@ function wrapMcpTool(
         });
 
         if (!veredito.permitido) {
-          const explicacao = recusaParaOModelo(veredito) ?? "ação não permitida.";
+          const explicacao = recusaParaOModelo(veredito, def.name) ?? "ação não permitida.";
           void auditMcpToolCall({
             ctx: input.ctx,
             toolName: def.name,
@@ -178,7 +178,15 @@ function wrapMcpTool(
           // Devolve TEXTO em vez de lançar: o modelo lê, entende por que foi
           // recusado e segue a conversa. Uma exceção viraria erro de execução e
           // o turno morreria — para o cliente, o assistente teria emudecido.
-          return { permitido: false, motivo: veredito.motivo, mensagem: explicacao };
+          return {
+            permitido: false,
+            motivo: veredito.motivo,
+            mensagem: explicacao,
+            // Diagnóstico interno, sem dados pessoais: identifica a configuração
+            // responsável pela recusa. Nunca autoriza uma tentativa alternativa.
+            agent_id: input.ctx.actor.type === "ai_agent" ? input.ctx.actor.agent_id : undefined,
+            pipeline_id: veredito.motivo === "funil_fora_do_escopo" ? veredito.pipelineId : undefined,
+          };
         }
 
         const result = await def.handler(argsRecord as never, input.ctx);
