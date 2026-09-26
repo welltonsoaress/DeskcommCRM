@@ -1,10 +1,10 @@
-<!-- traduzido-de: docs/white-label.md@e1d374bb48e0 -->
+<!-- traduzido-de: docs/white-label.md@a545d98dad50 -->
 
 [🇧🇷 Português](white-label.md) · 🇺🇸 English · [🇪🇸 Español](white-label.es.md)
 
 # Installing for clients (agencies and resellers)
 
-A guide for whoever installs DeskcommCRM **for other companies** — agency, consultancy, reseller — and charges for it.
+A guide for whoever installs Striva Sales **for other companies** — agency, consultancy, reseller — and charges for it.
 
 The license is MIT: you may modify it, host it for third parties, resell it and charge whatever you want. There is no royalty, no clause forbidding commercial hosting, and there is no paid edition that locks features away from your client.
 
@@ -33,12 +33,12 @@ Between the two, **the file uploaded from the screen beats the `.env` URL** — 
 ```bash
 APP_NAME=Turbo Sales CRM
 APP_LOGO_URL=https://cdn.yourcompany.com/logo.svg
-APP_ACCENT_HEX=#7a5cd6
+APP_ACCENT_HEX=#7C3AED
 ```
 
 `install.sh` asks for **two** of them and writes them down: `APP_NAME` (Enter keeps the default) and `APP_ACCENT_HEX` (Enter uses the system color). It does not ask for `APP_LOGO_URL` — the normal path for the logo is uploading the file from the screen, and this key exists for whoever would rather host it themselves.
 
-> The color is asked with a validator: only `#` + 6 digits gets through. That is narrower than what the screen accepts, and deliberately so — the **access e-mails** (account confirmation and password recovery) read this key from the `.env`, and they recognize that form only. A `#abc` or a `7a5cd6` would paint the interface with your color and leave the product's green in the first e-mail your client opens.
+> The color is asked with a validator: only `#` + 6 digits gets through. That is narrower than what the screen accepts, and deliberately so — the **access e-mails** (account confirmation and password recovery) read this key from the `.env`, and they recognize that form only. A `#abc` or a `7a5cd6` would paint the interface with your color and leave the product's violet in the first e-mail your client opens.
 
 > ⚠️ **Changing the color from the screen afterwards does NOT rewrite the access e-mails.** Their text lives inside Supabase (GoTrue), not in the CRM, and what pushes it there is `marca-emails.sh` — which reads the **`.env`**, not the database. For the e-mails to follow a color changed in `/admin/marca`: adjust `APP_ACCENT_HEX` in the `.env` as well and run `bash hostgator-setup-kit/marca-emails.sh`. This is why the installer interview matters: it is the only moment when both ends are born identical without anyone having to know about this.
 

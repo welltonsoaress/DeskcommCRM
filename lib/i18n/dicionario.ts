@@ -166,6 +166,14 @@ export const DICIONARIO: Traducoes = {
   "Confirmar liberação": { es: "Confirmar habilitación" },
   "Novos canais começam em modo de teste, sem respostas automáticas até você autorizar números ou liberar o público.": { es: "Los canales nuevos empiezan en modo de prueba, sin respuestas automáticas hasta que autorices números o habilites al público." },
   "Assistência do agente": { es: "Asistencia del agente" },
+  "Fechar sugestão": { es: "Cerrar sugerencia" },
+  "Há casos aguardando ação humana": { es: "Hay casos esperando intervención humana" },
+  "Revise os casos para dar continuidade ao atendimento.": {
+    es: "Revisa los casos para continuar la atención.",
+  },
+  "Abrir casos": { es: "Ver casos" },
+  "Casos aguardando ação humana": { es: "Casos que esperan intervención humana" },
+  "Não foi possível verificar os casos": { es: "No se pudieron comprobar los casos" },
   "Resposta aprovada. Acompanhe o envio aqui.": { es: "Respuesta aprobada. Sigue el envío aquí." },
   "Sugestão rejeitada. O feedback será usado na próxima sugestão.": {
     es: "Sugerencia rechazada. Los comentarios se usarán en la próxima sugerencia.",
@@ -3011,7 +3019,8 @@ export const DICIONARIO: Traducoes = {
   },
   "Cor da marca": { es: "Color de la marca" },
   "Escolher a cor visualmente": { es: "Elegir el color visualmente" },
-  "Use um código de cor como #7a5cd6.": { es: "Usa un código de color como #7a5cd6." },
+  "Use um código de cor como #7C3AED.": { es: "Usa un código de color como #7C3AED." },
+  "Use um código de cor como #7c3aed.": { es: "Usa un código de color como #7c3aed." },
   "Deixe em branco para voltar à cor padrão do sistema.": {
     es: "Déjalo en blanco para volver al color predeterminado del sistema.",
   },
@@ -3995,6 +4004,15 @@ export const DICIONARIO: Traducoes = {
   },
   "Versão instalada:": { es: "Versión instalada:" },
   "Não consegui checar se há versão nova": { es: "No pude comprobar si hay una versión nueva" },
+  "Origem das versões ainda não confirmada": {
+    es: "El origen de las versiones aún no está confirmado",
+  },
+  "O servidor ainda não confirmou o repositório, a tag e o commit da distribuição desta instalação. Por segurança, não vou mostrar versões nem notas dessa origem e não oferecerei uma atualização.": {
+    es: "El servidor aún no confirmó el repositorio, la etiqueta y el commit de la distribución de esta instalación. Por seguridad, no mostraré versiones ni notas de ese origen ni ofreceré una actualización.",
+  },
+  "Quando o agente reportar uma release própria verificável, ela aparecerá aqui.": {
+    es: "Cuando el agente informe una versión propia verificable, aparecerá aquí.",
+  },
   "O servidor não conseguiu comparar a sua versão (": {
     es: "El servidor no pudo comparar tu versión (",
   },
@@ -4013,6 +4031,9 @@ export const DICIONARIO: Traducoes = {
   "Ainda não há nenhuma versão publicada": { es: "Todavía no hay ninguna versión publicada" },
   "Este projeto ainda não tem nenhuma versão publicada para comparar com a sua instalação — normal em um fork novo ou recém-criado a partir do código-fonte.": {
     es: "Este proyecto todavía no tiene ninguna versión publicada para comparar con tu instalación — normal en un fork nuevo o recién creado a partir del código fuente.",
+  },
+  "Este projeto ainda não tem nenhuma versão publicada para comparar com a sua instalação — isso pode acontecer enquanto a primeira release própria está sendo preparada.": {
+    es: "Este proyecto todavía no tiene ninguna versión publicada para comparar con tu instalación — esto puede ocurrir mientras se prepara la primera release propia.",
   },
   "Não há nada a atualizar agora": { es: "No hay nada que actualizar ahora" },
   "e isso não é um problema.": { es: "y eso no es un problema." },
@@ -4036,6 +4057,13 @@ export const DICIONARIO: Traducoes = {
   "Requer atenção": { es: "Requiere atención" },
   "O que muda": { es: "Qué cambia" },
   "Iniciando…": { es: "Iniciando…" },
+  "Atualizar todas as organizações desta instalação?": {
+    es: "¿Actualizar todas las organizaciones de esta instalación?",
+  },
+  "A atualização reinicia o sistema compartilhado por todas as organizações neste servidor. Vou criar um backup antes, mas escolha um horário adequado para a operação.": {
+    es: "La actualización reinicia el sistema compartido por todas las organizaciones de este servidor. Crearé una copia de seguridad antes, pero elige un horario adecuado para la operación.",
+  },
+  "Confirmar atualização": { es: "Confirmar actualización" },
   "Atualizar agora": { es: "Actualizar ahora" },
   "O sistema sai do ar por cerca de 2 minutos e volta sozinho. Faço uma cópia de segurança dos seus dados antes.": {
     es: "El sistema se apaga por cerca de 2 minutos y vuelve solo. Hago una copia de seguridad de tus datos antes.",
@@ -5570,6 +5598,12 @@ export const DICIONARIO: Traducoes = {
   },
   "a última parte pode estar cortada. O texto completo está no arquivo CHANGELOG.md do projeto.": {
     es: "la última parte puede estar cortada. El texto completo está en el archivo CHANGELOG.md del proyecto.",
+  },
+  "a última parte pode estar cortada. Consulte o histórico de releases da distribuição.": {
+    es: "la última parte puede estar cortada. Consulta el historial de releases de la distribución.",
+  },
+  "As notas desta release não estão disponíveis de forma verificável. Não vou exibir notas de outro projeto.": {
+    es: "Las notas de esta release no están disponibles de forma verificable. No mostraré notas de otro proyecto.",
   },
 
   // ─── App-root-other: páginas de erro, legais e convite (fora do IdiomaProvider) ───

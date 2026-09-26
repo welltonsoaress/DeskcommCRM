@@ -13,7 +13,7 @@ name: Publicar imagem Docker (GHCR)
 
 on:
   push:
-    tags: ["v*"]
+    tags: ["striva-v*"]
     branches: ["main"]
   # NÃO acrescente `release: types: [published]` aqui. Ele já esteve, e o efeito
   # foi medido na v1.3.0: `gh release create` empurra a tag E publica a release,
@@ -81,6 +81,10 @@ jobs:
             echo "não é push de tag (${GITHUB_REF_TYPE}) — nada a conferir"
             exit 0
           fi
+          if [[ ! "${GITHUB_REF_NAME}" =~ ^striva-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag fora do contrato da distribuição: ${GITHUB_REF_NAME}"
+            exit 1
+          fi
           estado=$(gh api "repos/${GITHUB_REPOSITORY}/compare/main...${GITHUB_SHA}" --jq .status)
           echo "compare main...${GITHUB_SHA} → ${estado}"
           # `identical` = a tag é o topo da main; `behind` = está atrás dela, ou
@@ -108,15 +112,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: deskcommcrm
+          - name: striva-sales
             dockerfile: Dockerfile
-            title: DeskcommCRM
-          - name: deskcomm-worker
+            title: Striva Sales
+          - name: striva-worker
             dockerfile: Dockerfile.worker
-            title: DeskcommCRM worker
-          - name: deskcomm-scheduler
+            title: Striva Sales worker
+          - name: striva-scheduler
             dockerfile: Dockerfile.scheduler
-            title: DeskcommCRM scheduler
+            title: Striva Sales scheduler
 
     steps:
       - uses: actions/checkout@v7
@@ -136,7 +140,7 @@ jobs:
         id: ver
         run: |
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
-            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+            echo "value=${GITHUB_REF_NAME#striva-v}" >> "$GITHUB_OUTPUT"
           else
             echo "value=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
           fi
@@ -148,8 +152,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.name }}
           tags: |
             type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=${{ steps.ver.outputs.value }},enable=${{ github.ref_type == 'tag' }}
             # `enable={{is_default_branch}}` NÃO basta: o metadata-action o
             # considera verdadeiro também num push de TAG, então toda release
             # movia `latest` junto. Isso apagava a distinção que a doutrina
@@ -199,6 +202,9 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             APP_VERSION=${{ steps.ver.outputs.value }}
+            APP_REVISION=${{ github.sha }}
+            APP_RELEASE_TAG=${{ github.ref_type == 'tag' && github.ref_name || '' }}
+            APP_DISTRIBUTION_ID=striva-sales
           # Cache por imagem: as três têm camadas diferentes e um escopo único
           # faria uma sobrescrever o cache da outra a cada run.
           cache-from: type=gha,scope=${{ matrix.name }}
@@ -236,12 +242,15 @@ jobs:
           platforms: linux/amd64
           push: false
           load: true
-          tags: deskcomm-smoke:pr
+          tags: striva-smoke:pr
           build-args: |
             APP_VERSION=smoke
+            APP_REVISION=${{ github.sha }}
+            APP_RELEASE_TAG=
+            APP_DISTRIBUTION_ID=striva-sales
           # Mesmo escopo de cache do build-and-push: as camadas são idênticas,
           # então na prática este job reaproveita aquele build em vez de repeti-lo.
-          cache-from: type=gha,scope=deskcommcrm
+          cache-from: type=gha,scope=striva-sales
 
       - name: O container chega a servir?
         run: |
@@ -252,7 +261,7 @@ jobs:
             -e SUPABASE_SERVICE_ROLE_KEY=chave-de-mentira \
             -e SUPABASE_DB_URL=postgres://u:p@127.0.0.1:5432/postgres \
             -e SENTRY_DSN=off \
-            deskcomm-smoke:pr
+            striva-smoke:pr
 
           # Espera o boot; falha rápido se o processo morreu (crashloop).
           pronto=nao
@@ -325,7 +334,7 @@ jobs:
     # velho sobre banco já migrado. Sem `tag`, um dispatch numa branch moveria o
     # canal. Sem o `v`, uma tag de teste o move (o registro já tem uma
     # `quebrada-teste`, que nenhum push na main consegue produzir).
-    if: github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+    if: github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref_name, 'striva-v')
     runs-on: ubuntu-latest
     permissions:
       # O menor escopo que faz o trabalho: reapontar tag no GHCR. Sem o bloco, o
@@ -350,8 +359,8 @@ jobs:
           # que fez `stable` e `1.3.0` divergirem com o mesmo `revision`), e aí o
           # canal deixaria de ser o mesmo manifesto que a versão.
           dono=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
-          numero="${VERSAO#v}"
-          for img in deskcommcrm deskcomm-worker deskcomm-scheduler; do
+          numero="${VERSAO#striva-v}"
+          for img in striva-sales striva-worker striva-scheduler; do
             echo "::group::${img}"
             docker buildx imagetools create \
               --tag "${REGISTRY}/${dono}/${img}:stable" \

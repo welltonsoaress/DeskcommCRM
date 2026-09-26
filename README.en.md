@@ -3,11 +3,11 @@
 [🇧🇷 Português](README.md) · 🇺🇸 English · [🇪🇸 Español](README.es.md)
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/deskcomm-logo-dark.svg">
-  <img src="docs/brand/deskcomm-logo.svg" alt="Deskcomm CRM" width="420">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/striva-sales-dark.svg">
+  <img src="docs/brand/striva-sales-light.svg" alt="Striva Sales" width="420">
 </picture>
 
-# 🛠️ DeskcommCRM — The open-source AI Sales OS for WhatsApp
+# 🛠️ Striva Sales — The open-source AI Sales OS for WhatsApp
 
 **AI agents that answer, qualify and sell on WhatsApp — inside an open-source CRM running on your own server.**
 **No subscription, no gated features, your data stays yours. The open alternative to Kommo, Octadesk and Intercom.**
@@ -16,7 +16,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript)](https://www.typescriptlang.org)
 [![Supabase](https://img.shields.io/badge/Supabase-Postgres%2BAuth%2BStorage-3ecf8e?logo=supabase)](https://supabase.com)
 [![Self-hosted](https://img.shields.io/badge/self--hosted-one%20command-orange)](hostgator-setup-kit/)
-[![CI](https://github.com/welltonsoaress/DeskcommCRM/actions/workflows/ci.yml/badge.svg)](https://github.com/welltonsoaress/DeskcommCRM/actions/workflows/ci.yml)
+[![CI](https://github.com/welltonsoaress/striva-sales/actions/workflows/ci.yml/badge.svg)](https://github.com/welltonsoaress/striva-sales/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 [**⚡ Install**](#-install-on-your-vps-the-main-path) · [**🔄 Update**](#-updating) · [**🧭 Vision**](VISION.md) · [**🏗️ Architecture**](ARCHITECTURE.md) · [**🤝 Contributing**](CONTRIBUTING.md) · [**🗺️ Roadmap**](#%EF%B8%8F-roadmap)
@@ -27,8 +27,8 @@
 
 > ### ☁️ Run this CRM in production with one command
 >
-> The original project documents a HostGator partnership; this fork does not claim it. The [`hostgator-setup-kit/`](hostgator-setup-kit/)
-> installs the full CRM (app + WhatsApp + database) on a VPS with a single command, and the
+> The [`hostgator-setup-kit/`](hostgator-setup-kit/) configures the app, WhatsApp and database
+> on a Docker VPS with a single command, and the
 > [production runbook](docs/runbooks/waha-hostgator.md) assumes that environment.
 >
 > Choose any Docker-compatible VPS and check pricing directly with the provider.
@@ -38,7 +38,7 @@
 > command for your case:
 >
 > ```bash
-> curl -fsSL https://raw.githubusercontent.com/welltonsoaress/DeskcommCRM/main/hostgator-setup-kit/comecar.sh | bash
+> curl -fsSL https://raw.githubusercontent.com/welltonsoaress/striva-sales/main/hostgator-setup-kit/comecar.sh | bash
 > ```
 >
 > *(prefer to read before executing? clone the repo and run `bash hostgator-setup-kit/comecar.sh` —
@@ -71,8 +71,8 @@ That is not a freeze: the terminal is hiding your password. Type (or paste) it a
 Once inside the VPS:
 
 ```bash
-git clone https://github.com/welltonsoaress/DeskcommCRM.git
-cd DeskcommCRM
+git clone https://github.com/welltonsoaress/striva-sales.git
+cd striva-sales
 bash hostgator-setup-kit/install.sh
 ```
 
@@ -130,7 +130,7 @@ onboarding, scan the QR code with your WhatsApp number.
 ### 🤖 Rather have an AI install it for you?
 
 Drop the `hostgator-setup-kit/` folder into **Claude Code** running inside the VPS and say
-*"install DeskcommCRM for me"*. It reads the kit's [`CLAUDE.md`](hostgator-setup-kit/CLAUDE.md)
+*"install Striva Sales for me"*. It reads the kit's [`CLAUDE.md`](hostgator-setup-kit/CLAUDE.md)
 — which carries the step-by-step and the already-mapped pitfalls — and walks you through it.
 
 ---
@@ -158,7 +158,7 @@ broken app back.
 ### From the terminal
 
 ```bash
-cd /path/to/DeskcommCRM
+cd /path/to/striva-sales
 bash hostgator-setup-kit/update.sh
 ```
 
@@ -204,7 +204,7 @@ esperados`, that one is worth keeping.
 
 ## ✨ What is it
 
-**Deskcomm** comes from **Desk** + **comm** (commerce): your entire sales operation on a single desk, run by people and AI agents working together.
+**Striva Sales** is an independently maintained CRM with native AI agents and WhatsApp, built to support the full sales workflow.
 
 The project was born as an e-commerce CRM — and the open-source community took it much further: today it runs in **clinics, real-estate agencies, info-product businesses, agencies, stores and service providers** — any business that sells over WhatsApp. The product followed that shift and became a **sales operating system**: AI agents with per-tenant RAG answer customers, qualify leads, move them through the pipeline, trigger automations and know when to hand off to a human — with the whole CRM exposed via **MCP** so agents can truly operate it. The full story is in [`VISION.md`](VISION.md).
 
@@ -273,8 +273,8 @@ Details: [`ARCHITECTURE.md`](ARCHITECTURE.md).
 > This section is for people who will change the code.
 
 ```bash
-git clone https://github.com/welltonsoaress/DeskcommCRM.git
-cd DeskcommCRM
+git clone https://github.com/welltonsoaress/striva-sales.git
+cd striva-sales
 
 nvm use                     # Node 22
 npm install -g pnpm && pnpm install
@@ -309,10 +309,10 @@ pnpm test:db       # ephemeral Postgres + baseline install/update + invariants
 pnpm test:e2e      # Playwright (requires dev server)
 ```
 
-Configure the required checks for this fork's `main`. The historical check list belongs to the original repository — **measure the fork's protection before relying on it**:
+Configure the required checks for this repository's `main`. The historical check list belongs to the original repository — **measure the fork's protection before relying on it**:
 
 ```bash
-gh api repos/welltonsoaress/DeskcommCRM/branches/main/protection \
+gh api repos/welltonsoaress/striva-sales/branches/main/protection \
   --jq '.required_status_checks.contexts|join(", ")'
 # the 2026-08-14 measurement was from the original repository
 ```
@@ -379,9 +379,9 @@ Two required gates do **not** fit there and only run in CI: `e2e` (needs a local
 
 ## 🐛 Reporting bugs
 
-Open an [issue](https://github.com/welltonsoaress/DeskcommCRM/issues/new/choose) — the template asks for what we need (environment, `/api/v1/health`, steps). Running `bash hostgator-setup-kit/healthcheck.sh` and pasting the output helps a lot.
+Open an [issue](https://github.com/welltonsoaress/striva-sales/issues/new/choose) — the template asks for what we need (environment, `/api/v1/health`, steps). Running `bash hostgator-setup-kit/healthcheck.sh` and pasting the output helps a lot.
 
-For **security vulnerabilities**, **do NOT open a public issue** — use [private vulnerability reporting](https://github.com/welltonsoaress/DeskcommCRM/security/advisories/new). Details in [`SECURITY.md`](SECURITY.md).
+For **security vulnerabilities**, **do NOT open a public issue** — use [private vulnerability reporting](https://github.com/welltonsoaress/striva-sales/security/advisories/new). Details in [`SECURITY.md`](SECURITY.md).
 
 ---
 
@@ -403,7 +403,7 @@ For **security vulnerabilities**, **do NOT open a public issue** — use [privat
 
 ### 🔮 Next
 
-- **Public MCP** — CRM capabilities exposed to the agent ecosystem: plug in any agent and it operates Deskcomm.
+- **Public MCP** — CRM capabilities exposed to the agent ecosystem: plug in any agent and it operates Striva Sales.
 - **Niche templates** — ready-made pipelines and vocabularies for clinics, real estate, info-products and services (e-commerce already shipped).
 - **Integrations** — VTEX and Shopify via the adapter pattern (Nuvemshop already shipped).
 - **Probabilistic identity** — contact unification across channels.
@@ -412,9 +412,9 @@ For **security vulnerabilities**, **do NOT open a public issue** — use [privat
 
 ## 💬 Community
 
-- **Discussions:** [GitHub Discussions](https://github.com/welltonsoaress/DeskcommCRM/discussions)
-- **Issues:** [GitHub Issues](https://github.com/welltonsoaress/DeskcommCRM/issues)
-- **Original creator:** [@melgarafael](https://www.instagram.com/melgarafael) (not this fork's official channel).
+- **Discussions:** [GitHub Discussions](https://github.com/welltonsoaress/striva-sales/discussions)
+- **Issues:** [GitHub Issues](https://github.com/welltonsoaress/striva-sales/issues)
+- **Original creator:** [@melgarafael](https://www.instagram.com/melgarafael) (not this repository's official channel).
 
 ---
 
@@ -431,7 +431,7 @@ This is a **self-hosted** project: each person runs the CRM on their **own infra
 - **Support is community-based and "as-is".** No SLA — it's open source maintained by goodwill.
 - **You are responsible for your installation.** Updates are not automatic (you click, or run `update.sh`, when you want), and keeping/backing up your server is on you.
 - **Data protection:** whoever **hosts** the instance is the **controller** of the personal data processed there (customers, conversations, orders), with the legal obligations that follow. The project maintainers are **neither** controllers nor processors of your instance, and have no access to your database, your WhatsApp or your storage.
-- **Telemetry (Sentry):** off by default in this fork, even if `SENTRY_DSN` is empty. Set `SENTRY_DSN=<your-dsn>` in `.env` to use your own Sentry, or `SENTRY_DSN=off` to disable it. Scrubbing lives in [`lib/sentry/scrub.ts`](lib/sentry/scrub.ts); DSN resolution in [`lib/sentry/dsn.ts`](lib/sentry/dsn.ts).
+- **Telemetry (Sentry):** off by default in this repository, even if `SENTRY_DSN` is empty. Set `SENTRY_DSN=<your-dsn>` in `.env` to use your own Sentry, or `SENTRY_DSN=off` to disable it. Scrubbing lives in [`lib/sentry/scrub.ts`](lib/sentry/scrub.ts); DSN resolution in [`lib/sentry/dsn.ts`](lib/sentry/dsn.ts).
 
 ---
 
@@ -442,7 +442,7 @@ This is a **self-hosted** project: each person runs the CRM on their **own infra
 - **HostGator** — the infrastructure partnership documented by the original project.
 - **Anthropic**, **OpenAI** and **OpenRouter** — the AI providers the CRM knows how to use.
 - **shadcn/ui** — component base.
-- The community that took Deskcomm from e-commerce to clinics, real estate, info-products and beyond — you defined what this project is.
+- The open-source community whose feedback helped shape this independent sales platform.
 
 ---
 

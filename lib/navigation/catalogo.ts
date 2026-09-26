@@ -366,6 +366,7 @@ export const NAV_CATALOG = [
     group: "ia",
     section: "Acompanhar o agente",
     minRole: "agent",
+    sidebar: true,
   },
   {
     href: "/app/ai/inbox",

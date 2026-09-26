@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { extractChangelogSection, markdownParaTextoSimples } from "../system/changelog";
 import { parseFragmento } from "./fragmento";
 import { aplicarNoChangelog, montarSecao } from "./montar-secao";
+import { DISTRIBUTION_TAG_PREFIX } from "../system/distribution";
 
 /** URL sintética: este arquivo é varrido pela catraca de marca e não nomeia o repo. */
 const comparar = (de: string, para: string) => `https://exemplo.test/compare/${de}...${para}`;
@@ -104,9 +105,29 @@ describe("montarSecao — o que a TELA da VPS vai mostrar", () => {
   it("o rodapé de referências é reescrito — à mão ele apodrece, e apodreceu", () => {
     const comRodape = `${CABECALHO}\n[Não lançado]: https://exemplo.test/compare/v1.5.0...HEAD\n`;
     const texto = aplicarNoChangelog(comRodape, montarSecao([frag({})], "1.6.1", "2026-08-27"), "1.6.0", comparar);
-    expect(texto).toContain("[Não lançado]: https://exemplo.test/compare/v1.6.1...HEAD");
-    expect(texto).toContain("[1.6.1]: https://exemplo.test/compare/v1.6.0...v1.6.1");
+    expect(texto).toContain(`[Não lançado]: https://exemplo.test/compare/${DISTRIBUTION_TAG_PREFIX}1.6.1...HEAD`);
+    expect(texto).toContain(
+      `[1.6.1]: https://exemplo.test/compare/${DISTRIBUTION_TAG_PREFIX}1.6.0...${DISTRIBUTION_TAG_PREFIX}1.6.1`,
+    );
     expect(texto).not.toContain("compare/v1.5.0...HEAD");
+  });
+
+  it("corta a primeira release como 1.0.0 sem publicar a base técnica 0.0.0", () => {
+    const inicial = `${CABECALHO}\n## [0.0.0] — base técnica\n`;
+    const texto = aplicarNoChangelog(
+      inicial,
+      montarSecao(
+        [frag({ impacto: "exige_acao", atencao: "Escolha uma janela de manutenção antes de atualizar." })],
+        "1.0.0",
+        "2026-09-25",
+      ),
+      "0.0.0",
+      comparar,
+    );
+    expect(texto).toContain("## [1.0.0]");
+    expect(texto).not.toContain("## [0.0.0]");
+    expect(texto).not.toContain("[1.0.0]:");
+    expect(texto).toContain(`[Não lançado]: https://exemplo.test/compare/${DISTRIBUTION_TAG_PREFIX}1.0.0...HEAD`);
   });
 
   it("recusa CHANGELOG sem a âncora, em vez de inserir em lugar nenhum", () => {

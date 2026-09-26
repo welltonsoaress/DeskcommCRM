@@ -143,10 +143,12 @@ test.describe("kit visual da Agenda", () => {
     // sessão vive no contexto, não na página. O localStorage do tema NÃO volta
     // sozinho, e sem limpá-lo o teste que troca para o escuro contaminaria o
     // seguinte: ele mediria "as cores do tema claro" num tema escuro e passaria,
-    // porque a régua de contraste vale para os dois.
+    // porque a régua de contraste vale para os dois. Limpa também a chave
+    // atual do produto e a legada, que permanece lida como fallback.
     await page.goto(VITRINE);
     await page.evaluate(() => {
       try {
+        window.localStorage.removeItem("striva-theme");
         window.localStorage.removeItem("deskcomm-theme");
       } catch {
         /* modo privado: o tema já é o default */

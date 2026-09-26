@@ -1,79 +1,66 @@
-# Marca
+# Identidade visual do Striva Sales
 
-## Símbolo e logotipo
+## Arquivos de marca
 
-| Arquivo | O que é |
+| Arquivo | Uso |
 |---|---|
-| `deskcomm-icon.svg` | O símbolo: D aberto com um módulo quadrado destacado. Quadrado de 216. |
-| `deskcomm-logo.svg` | Logotipo para fundo claro — símbolo em sálvia `#506d48`, nome em `#1c1a16`, "CRM" em `#5d594f`. |
-| `deskcomm-logo-dark.svg` | Logotipo para fundo escuro — sálvia `#82a077`, nome em `#f5f4ef`, "CRM" em `#8e8b7f`. |
+| `striva-sales-light.svg` | Logotipo completo para fundos claros. |
+| `striva-sales-dark.svg` | Logotipo completo para fundos escuros. |
+| `striva-sales-monochrome.svg` | Logotipo de uma cor para aplicações especiais. |
+| `striva-symbol.svg` | Símbolo S geométrico isolado com módulo destacado. |
+| `og-card.html` / `og-social-preview.png` | Cartão de compartilhamento do repositório. |
 
-O texto do logotipo já está convertido em caminhos: nenhum arquivo depende de fonte.
+As letras do SVG são caminhos, sem dependência de fonte. A geometria usada pelo
+aplicativo está compartilhada em `lib/branding/desenho.ts`, `components/branding/MarcaDoProduto.tsx`
+e `app/icon.tsx`. Mantenha essas formas sincronizadas com os SVGs.
 
-**Estes SVGs são a fonte; o app NÃO os lê.** A geometria está copiada em
-`lib/branding/desenho.ts` e é desenhada inline por `components/branding/MarcaDoProduto.tsx`
-(barra lateral, fachada de entrada) e por `app/icon.tsx` (ícone da aba) — e só aparece
-quando ninguém configurou marca própria (`marcaEhADoProduto`, em `lib/branding.ts`).
-Um `.svg` em `public/` seria servido na instalação de todo revendedor, que é o vazamento
-que `tests/unit/branding.test.ts` existe para impedir. Ao revisar a arte, atualize os
-três arquivos aqui **e** o `desenho.ts`; `tests/unit/marca-do-produto.test.tsx` cobra
-que as cores dos dois lados coincidam.
+O app não serve o arquivo padrão como marca universal. O resolvedor segue a
+precedência de marca da organização, instalação e ambiente antes do padrão
+Striva Sales. Isso mantém o white-label para revendedores. O teste
+`tests/unit/branding.test.ts` protege a fronteira entre código de interface e
+marcas personalizadas.
 
-Os READMEs (pt, en, es) usam os arquivos diretamente, num `<picture>` que troca para a
-versão escura conforme o tema do GitHub. A LP (`deskcomm-site`) tem a própria cópia em
-`components/Marca.tsx` e `app/icon.svg`.
+## Paleta
 
-Prova pela tela (2026-09-08, Supabase local fresco do `baseline.sql`, marca sem configurar):
+O violeta-base é `#7C3AED`; a escala completa para temas claro e escuro está em
+`app/globals.css`. As cores semânticas de sucesso, atenção e erro continuam com
+seus significados próprios. `app/design/lib/tokens.ts` apresenta a mesma escala
+no showcase de design.
 
-| Imagem | O que mostra |
+## Capturas históricas
+
+Estas imagens registram telas da identidade anterior à Striva Sales. Elas são
+referência histórica de QA, não representam o logotipo nem a paleta atuais. A
+identidade atual está nos SVGs listados acima.
+
+| Captura | Registro |
 |---|---|
-| `evidence/marca/crm-login-claro.png` | Fachada de entrada com o logotipo, tema claro |
-| `evidence/marca/crm-login-escuro.png` | A mesma fachada no escuro: sálvia clara e nome em creme |
-| `evidence/marca/crm-sidebar-aberta.png` | Barra lateral aberta com o logotipo |
-| `evidence/marca/crm-sidebar-aberta-escura.png` | Barra aberta no escuro |
-| `evidence/marca/crm-sidebar-recolhida.png` | Barra recolhida (64px) só com o símbolo |
-| `evidence/marca/crm-sidebar-recolhida-escura.png` | Barra recolhida no escuro |
-| `evidence/marca/favicon-produto.png` | `/icon` gerado em runtime com o símbolo |
-| `evidence/marca/crm-login-revendedor.png` | Controle negativo: com `platform_branding.app_name` gravado, a fachada fica sem o desenho |
-| `evidence/marca/favicon-revendedor.png` | Controle negativo: o favicon volta à inicial sobre a cor de destaque |
-| `evidence/marca/lp-cabecalho.png` | Cabeçalho da LP (`deskcomm-site`) com o logotipo |
-| `evidence/marca/lp-rodape.png` | Rodapé da LP com o símbolo |
+| `evidence/marca/crm-login-claro.png` | Login com a marca anterior, tema claro. |
+| `evidence/marca/crm-login-escuro.png` | Login com a marca anterior, tema escuro. |
+| `evidence/marca/crm-sidebar-aberta.png` | Sidebar expandida com a marca anterior. |
+| `evidence/marca/crm-sidebar-aberta-escura.png` | Sidebar expandida no tema escuro. |
+| `evidence/marca/crm-sidebar-recolhida.png` | Sidebar recolhida com o símbolo anterior. |
+| `evidence/marca/crm-sidebar-recolhida-escura.png` | Sidebar recolhida no tema escuro. |
+| `evidence/marca/favicon-produto.png` | Favicon gerado pela identidade anterior. |
+| `evidence/marca/crm-login-revendedor.png` | Controle negativo da marca configurada pelo revendedor. |
+| `evidence/marca/favicon-revendedor.png` | Controle negativo do favicon com marca própria. |
+| `evidence/marca/lp-cabecalho.png` | Cabeçalho histórico do site de apresentação. |
+| `evidence/marca/lp-rodape.png` | Rodapé histórico do site de apresentação. |
 
-## Social preview (Open Graph)
+## Cartão social
 
-`og-social-preview.png` — 1280×640, é a imagem que aparece quando um link do
-repositório é compartilhado no X, LinkedIn, WhatsApp, Slack ou Discord.
-
-**Como aplicar:** GitHub → Settings → General → *Social preview* → Upload.
-Não existe endpoint público na API para isso; é upload pela interface.
-
-**Como regerar** (depois de mudar posicionamento, chips ou paleta):
+`og-card.html` é a fonte do PNG 1280×640. Para regenerá-lo após uma mudança:
 
 ```bash
-# edite docs/brand/og-card.html, depois:
 node -e '
 import("@playwright/test").then(async ({ chromium }) => {
-  const b = await chromium.launch();
-  const p = await b.newPage({ viewport: { width: 1280, height: 640 }, deviceScaleFactor: 2 });
-  await p.goto("file://" + process.cwd() + "/docs/brand/og-card.html", { waitUntil: "networkidle" });
-  await p.evaluate(() => document.fonts.ready);
-  await p.screenshot({ path: "docs/brand/og-social-preview.png" });
-  await b.close();
+  const browser = await chromium.launch();
+  const page = await browser.newPage({ viewport: { width: 1280, height: 640 }, deviceScaleFactor: 1 });
+  await page.goto("file://" + process.cwd() + "/docs/brand/og-card.html", { waitUntil: "networkidle" });
+  await page.evaluate(() => document.fonts.ready);
+  await page.screenshot({ path: "docs/brand/og-social-preview.png" });
+  await browser.close();
 });'
 ```
 
-A fonte fica versionada de propósito: card cuja origem se perde vira arte que
-ninguém consegue atualizar quando o posicionamento muda — e aí ou envelhece
-mentindo, ou é refeito do zero com outra identidade.
-
-## Regras da arte
-
-- Paleta lida de `app/globals.css` (creme `#faf9f6`, sage `#506d48`, texto
-  `#1c1a16`). O card usa a identidade real do produto, não uma criada para ele.
-- Tipografia: Atkinson Hyperlegible (títulos) + IBM Plex Mono (rótulos), as
-  mesmas da aplicação.
-- O painel direito é a doutrina do sistema vivo virando imagem: o rastro que uma
-  demanda deixa ao atravessar o sistema, terminando no follow-up — o mecanismo
-  anti-morte. É o argumento do produto mostrado, não adjetivado.
-- Card de compartilhamento **sempre** carrega o logotipo (inline no HTML, lido de
-  `deskcomm-logo.svg`). Sem ele, quem vê a imagem não sabe de quem ela é.
+O envio do cartão social ao GitHub é feito em **Settings → General → Social preview**.

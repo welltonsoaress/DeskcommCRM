@@ -60,12 +60,23 @@ clone="$TMP/c1"; clonar "$clone" "alguem@fork.dev"
 saida="$(cd "$clone" && bash .agents/skills/deskcomm-contribuir/scripts/quem-sou.sh)"
 assert_contains "$saida" "^contribuidor" "e-mail desconhecido → contribuidor"
 assert_contains "$saida" "alguem@fork.dev" "a saída explica o motivo (o e-mail)"
-git -C "$clone" config user.email "rafael@maudibrasil.com.br"
+cat > "$FAKEBIN/gh" <<'GH'
+#!/usr/bin/env bash
+[ "${1:-}" = api ] && [ "${2:-}" = user ] && { echo welltonsoaress; exit 0; }
+exit 1
+GH
+chmod +x "$FAKEBIN/gh"
+git -C "$clone" config user.email "mantenedor@exemplo.com"
 saida="$(cd "$clone" && bash .agents/skills/deskcomm-contribuir/scripts/quem-sou.sh --curto)"
-assert_contains "$saida" "^mantenedor$" "e-mail do .mailmap → mantenedor (--curto)"
+assert_contains "$saida" "^mantenedor$" "a conta GitHub dona da distribuição é mantenedora"
+cat > "$FAKEBIN/gh" <<'GH'
+#!/usr/bin/env bash
+exit 1
+GH
+chmod +x "$FAKEBIN/gh"
 git -C "$clone" config user.email "119944436+melgarafael@users.noreply.github.com"
 saida="$(cd "$clone" && bash .agents/skills/deskcomm-contribuir/scripts/quem-sou.sh)"
-assert_contains "$saida" "^mantenedor" "segundo e-mail do .mailmap → mantenedor"
+assert_contains "$saida" "^contribuidor" "identidade histórica do .mailmap não vira mantenedor do Striva"
 
 echo "2. check-migration-triple.sh (pre-commit)"
 clone="$TMP/c2"; clonar "$clone" "alguem@fork.dev"
@@ -143,7 +154,13 @@ assert_contains "$saida" "NÃO armados" "diz que os hooks não estão armados"
 git -C "$clone" config core.hooksPath ".agents/skills/deskcomm-contribuir/scripts/hooks"
 saida="$(cd "$clone" && bash .agents/skills/deskcomm-contribuir/scripts/hooks/sessao.sh)"
 assert_contains "$saida" "contribuidor armados" "com hooks armados, diz que estão"
-git -C "$clone" config user.email "rafael@maudibrasil.com.br"
+cat > "$FAKEBIN/gh" <<'GH'
+#!/usr/bin/env bash
+[ "${1:-}" = api ] && [ "${2:-}" = user ] && { echo welltonsoaress; exit 0; }
+exit 1
+GH
+chmod +x "$FAKEBIN/gh"
+git -C "$clone" config user.email "mantenedor@exemplo.com"
 saida="$(cd "$clone" && bash .agents/skills/deskcomm-contribuir/scripts/hooks/sessao.sh)"; code=$?
 assert_exit "$code" 0 "mantenedor: sai com 0"
 if [ -z "$saida" ]; then ok "mantenedor: silêncio total"; else falha "mantenedor: silêncio total" "saída: $saida"; fi

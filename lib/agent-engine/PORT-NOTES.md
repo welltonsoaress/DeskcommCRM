@@ -1,11 +1,11 @@
-# agent-engine — notas do porte Vendaval → DeskcommCRM (fusão)
+# agent-engine — notas do porte Vendaval → Striva Sales (fusão)
 
 > Doutrina do porte. TODO arquivo em `lib/agent-engine/` segue estas regras. Fonte original:
 > `~/vendaval/daemon/src/` (referência histórica; este diretório é o canônico daqui em diante).
 
 ## Mapeamento de schema (determinístico — código E migration seguem a MESMA regra)
 
-| Vendaval (antigo) | DeskcommCRM (canônico) |
+| Vendaval (antigo) | Striva Sales (destino) |
 |---|---|
 | tabela `tenants` | **NÃO EXISTE** → `organizations` (tabela real do CRM) |
 | coluna `tenant_id` | `organization_id uuid not null references organizations(id) on delete cascade` |
@@ -38,7 +38,7 @@ rename for arriscado, mas TODO SQL usa os nomes canônicos. Novos códigos usam 
 - Imports relativos SEM extensão `.ts` (moduleResolution bundler).
 - Sem `console.log` — usar `obs/logger`.
 - AI SDK do repo: `ai` ^6 + `@ai-sdk/anthropic` ^3 (NÃO v7/v4 do Vendaval). Espelhar o uso de
-  `generateText`/usage que `lib/ai/runtime/agent.ts` do Deskcomm já faz.
+  `generateText`/usage que `lib/ai/runtime/agent.ts` do Striva já faz.
 - Zod do repo é v3 (`z.object().passthrough()`, `z.string().uuid()`) — NUNCA APIs v4
   (`z.looseObject`, `z.uuid()`, `.loose()`, `z.iso.*`).
 - DB runtime do worker: `pg` Pool via env `SUPABASE_DB_URL` (mesmo padrão do kit self-host);
@@ -51,7 +51,7 @@ rename for arriscado, mas TODO SQL usa os nomes canônicos. Novos códigos usam 
   org-scoped, + apêndice em `supabase/baseline.sql` + linha no `MANIFEST.md`.
 
 ## Fora do porte (decisão registrada)
-- Canvas/console do Vendaval: descartados (UI do Deskcomm substitui).
+- Canvas/console do Vendaval: descartados (UI do Striva Sales substitui).
 - `eval/` e `optimizer/` (GEPA): entram na Fase 3 (flywheel vivo), não na fusão física.
 - `ops/backup.ts` e o watchdog de restart de sessão: Fase 4 (hardening VPS).
 - `edge/crm/mcp-client.ts` transporte MCP HTTP: morto — o arquivo mantém o nome mas agora só

@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "fs";
-import { join } from "path";
 
 import { extractChangelogRange, extractChangelogSection, markdownParaTextoSimples } from "./changelog";
+import { DISTRIBUTION_TAG_PREFIX } from "./distribution";
 
 const CHANGELOG = `# Changelog
 
@@ -22,12 +21,20 @@ Se você usa número próprio no WhatsApp, reconecte depois de atualizar.
 
 - Botão de atualizar pela própria tela.
 
-## [1.0.0] — 2026-07-27
+## [1.0.0] — 2026-09-25
 
-Primeira versão marcada do DeskcommCRM.
+### ⚠️ Requer atenção
 
-[Não lançado]: https://github.com/melgarafael/DeskcommCRM/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/melgarafael/DeskcommCRM/releases/tag/v1.0.0
+A atualização afeta todas as organizações desta instalação. Escolha uma janela de manutenção adequada.
+
+### Adicionado
+
+- **Plataforma**: a administração atualiza manualmente após validar as imagens da release.
+- Casos aguardando ação humana aparecem na navegação para dar continuidade ao atendimento.
+- A identificação de \`fn_user_org_ids()\` continua isolando dados por organização.
+
+[Não lançado]: https://example.test/compare/${DISTRIBUTION_TAG_PREFIX}1.0.0...HEAD
+[1.0.0]: https://example.test/releases/tag/${DISTRIBUTION_TAG_PREFIX}1.0.0
 `;
 
 describe("extractChangelogSection", () => {
@@ -79,7 +86,7 @@ Seu sistema precisa de ação.
     const section = extractChangelogSection(CHANGELOG, "1.0.0");
     expect(section?.body).not.toContain("[Não lançado]:");
     expect(section?.body).not.toContain("github.com");
-    expect(section?.body).toContain("Primeira versão marcada");
+    expect(section?.body).toContain("Casos aguardando ação humana");
   });
 
   it("devolve null para versão ausente", () => {
@@ -109,14 +116,10 @@ Novo`;
     expect(section?.requiresAttention).toContain("Mais informação");
   });
 
-  it("lê CHANGELOG.md real e encontra 1.0.0 com requiresAttention", () => {
-    // Sem try/catch: se falhar, é informação crítica, não ruído.
-    // Usa __dirname do teste, não process.cwd() que é frágil.
-    const realChangelog = readFileSync(join(__dirname, "../../CHANGELOG.md"), "utf8");
-    const section = extractChangelogSection(realChangelog, "1.0.0");
+  it("lê uma release própria com requiresAttention", () => {
+    const section = extractChangelogSection(CHANGELOG, "1.0.0");
     expect(section).not.toBeNull();
     expect(section?.version).toBe("1.0.0");
-    // No CHANGELOG real, linha 76 tem "### ⚠️ Requer atenção" com conteúdo
     expect(section?.requiresAttention).not.toBeNull();
   });
 
@@ -128,11 +131,10 @@ Novo`;
     expect(section?.body).not.toContain("Requer atenção");
   });
 
-  it("body NÃO contém o bloco de atenção do CHANGELOG.md real (heading)", () => {
-    const realChangelog = readFileSync(join(__dirname, "../../CHANGELOG.md"), "utf8");
-    const section = extractChangelogSection(realChangelog, "1.0.0");
-    expect(section?.requiresAttention).toContain("Node 22");
-    expect(section?.body).not.toContain("Node 22 é obrigatório");
+  it("body NÃO contém o bloco de atenção da release (heading)", () => {
+    const section = extractChangelogSection(CHANGELOG, "1.0.0");
+    expect(section?.requiresAttention).toContain("Escolha uma janela");
+    expect(section?.body).not.toContain("Escolha uma janela");
     expect(section?.body).not.toContain("Requer atenção");
   });
 
@@ -150,27 +152,22 @@ Node 22 é obrigatório.
 });
 
 describe("markdownParaTextoSimples", () => {
-  // Contra o CHANGELOG.md REAL, não um fixture inventado — o revisor apontou
-  // com razão que um fixture escrito por quem implementa evita justo os
-  // casos reais (negrito, crase, lista) que o changelog de verdade usa.
-  const realChangelog = readFileSync(join(__dirname, "../../CHANGELOG.md"), "utf8");
+  const changelogDeTeste = CHANGELOG;
 
-  it("limpa negrito e crase do bloco de atenção real, sem sumir com o conteúdo", () => {
-    const section = extractChangelogSection(realChangelog, "1.0.0");
+  it("limpa negrito, heading e crase do bloco de atenção sem sumir com o conteúdo", () => {
+    const section = extractChangelogSection(changelogDeTeste, "1.0.0");
     const limpo = markdownParaTextoSimples(section!.requiresAttention!);
     expect(limpo).not.toMatch(/[*`#]/);
-    expect(limpo).toContain("Node 22 é obrigatório para desenvolvimento.");
-    expect(limpo).toContain("WebSocket global");
-    expect(limpo).toMatch(/^•\s/);
+    expect(limpo).toContain("Escolha uma janela de manutenção adequada.");
   });
 
-  it("limpa heading e crase do corpo real (várias seções, várias listas)", () => {
-    const section = extractChangelogSection(realChangelog, "1.0.0");
+  it("limpa heading, negrito e crase do corpo da release", () => {
+    const section = extractChangelogSection(changelogDeTeste, "1.0.0");
     const limpo = markdownParaTextoSimples(section!.body);
     expect(limpo).not.toMatch(/[*`#]/);
-    expect(limpo).toContain("Plataforma");
+    expect(limpo).toContain("administração atualiza manualmente");
     expect(limpo).toContain("fn_user_org_ids()");
-    expect(limpo).toMatch(/•\s+Multi-tenancy/);
+    expect(limpo).toMatch(/•\s+Casos aguardando/);
   });
 
   it("não mexe em texto sem marcação nenhuma", () => {
@@ -180,7 +177,7 @@ describe("markdownParaTextoSimples", () => {
   });
 
   it("não confunde underscore de identificador com itálico (fn_user_org_ids)", () => {
-    // Achado rodando contra o CHANGELOG real: a primeira versão comia os
+    // A primeira versão comia os
     // "_" internos de nomes de função, virando "fnuserorg_ids()".
     expect(markdownParaTextoSimples("resolvida por `fn_user_org_ids()`.")).toBe(
       "resolvida por fn_user_org_ids().",

@@ -524,4 +524,4 @@ Bem-vindo ao DeskcommCRM. 🛠️
 
 ---
 
-> **Achou um erro neste guia?** Abra uma [issue](https://github.com/welltonsoaress/DeskcommCRM/issues) ou mande um PR — esse doc vive da contribuição da comunidade.
+> **Achou um erro neste guia?** Abra uma [issue](https://github.com/welltonsoaress/striva-sales/issues) ou mande um PR — esse doc vive da contribuição da comunidade.

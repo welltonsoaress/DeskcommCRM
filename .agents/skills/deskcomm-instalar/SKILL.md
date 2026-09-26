@@ -1,12 +1,12 @@
 ---
 name: deskcomm-instalar
-description: Guia de instalação e operação do DeskcommCRM numa VPS (HostGator ou qualquer servidor com Docker), para quem não é técnico ou instala para um cliente. Use SEMPRE que alguém quiser instalar, subir, configurar, atualizar, fazer backup ou restaurar o CRM, trocar domínio, cor ou e-mails, conectar o WhatsApp, ou quando aparecer erro de instalação — SSL/cadeado, DNS, Supabase (connection string, pooler, IPv6), chave de IA, Resend, proxy (Traefik, CloudPanel, Hostinger), "app reiniciando", "esqueci a senha", "perdi o autenticador" — mesmo que a pessoa não diga a palavra "instalar". Conduz passo a passo, roda os scripts do kit e explica em português simples.
+description: Guia de instalação e operação do Striva Sales numa VPS (HostGator ou qualquer servidor com Docker), para quem não é técnico ou instala para um cliente. Use SEMPRE que alguém quiser instalar, subir, configurar, atualizar, fazer backup ou restaurar o CRM, trocar domínio, cor ou e-mails, conectar o WhatsApp, ou quando aparecer erro de instalação — SSL/cadeado, DNS, Supabase (connection string, pooler, IPv6), chave de IA, Resend, proxy (Traefik, CloudPanel, Hostinger), "app reiniciando", "esqueci a senha", "perdi o autenticador" — mesmo que a pessoa não diga a palavra "instalar". Conduz passo a passo, roda os scripts do kit e explica em português simples.
 metadata:
   publico: leigo, agência, operador de VPS
   fonte-de-verdade: hostgator-setup-kit/install.sh
 ---
 
-# Instalar e operar o DeskcommCRM
+# Instalar e operar o Striva Sales
 
 Você está conduzindo uma pessoa que, quase sempre, **não programa** — ou que instala para um
 cliente e quer acertar de primeira. O produto se vende como "um comando na VPS"; a experiência de
@@ -91,8 +91,8 @@ cá. Registradores, passo a passo: `references/dominio-e-dns.md`.
 ### 5. Rodar o instalador — no modo interativo
 
 ```bash
-git clone https://github.com/welltonsoaress/DeskcommCRM.git deskcommcrm   # se ainda não clonou
-cd deskcommcrm
+git clone https://github.com/welltonsoaress/striva-sales.git striva-sales   # se ainda não clonou
+cd striva-sales
 bash hostgator-setup-kit/install.sh
 ```
 
@@ -103,10 +103,10 @@ acontece se pular cada opcional: `references/o-que-a-instalacao-pede.md`.
 
 Se precisar do modo sem perguntas (`--yes` com `.env` pronto), duas armadilhas medidas:
 
-- **não copie** as linhas `APP_IMAGE`, `WORKER_IMAGE`, `SCHEDULER_IMAGE` e `*_PULL_POLICY` do
-  `.env.hostgator.example` — elas apontam para o canal móvel `stable`, e a instalação deve ficar
-  presa a uma versão numerada. Deixe ausentes; o instalador põe a última versão publicada.
-- neste fork, `SENTRY_DSN=off` já vem no exemplo. A telemetria só liga com
+- **não substitua** as referências `APP_IMAGE`, `WORKER_IMAGE` e `SCHEDULER_IMAGE` por IDs locais
+  nem por tags móveis. O instalador resolve a última release própria `striva-v*` e fixa as três
+  imagens na mesma versão numerada antes de iniciar os serviços.
+- `SENTRY_DSN=off` já vem no exemplo. A telemetria só liga com
   `SENTRY_DSN=<dsn-próprio>` informado deliberadamente pelo operador.
 
 Também medido (issue #670): o instalador **exige** uma chave de IA válida, mesmo que a documentação
@@ -123,7 +123,7 @@ diga que dá para deixar vazia e cadastrar depois. Enquanto isso não muda, peç
 3. Onboarding: nome da empresa, o que ela faz, fuso horário; depois o WhatsApp — deixe o app do
    celular **já aberto em Aparelhos conectados** antes de clicar, o QR vale só uns minutos.
 4. Agendar backup diário (o Supabase grátis **não** faz backup sozinho):
-   `crontab -e` → `0 3 * * *  cd /caminho/deskcommcrm && bash hostgator-setup-kit/backup.sh`.
+   `crontab -e` → `0 3 * * *  cd /caminho/striva-sales && bash hostgator-setup-kit/backup.sh`.
    Os arquivos ficam **na mesma VPS**; copiar para fora é manual.
 5. Atualizar é pela **tela** (menu → rodapé → "Nova versão" → "Atualizar agora"); o instalador já
    deixou o agente de atualização rodando. `bash hostgator-setup-kit/update.sh` é o caminho manual.

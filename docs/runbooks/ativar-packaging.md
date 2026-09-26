@@ -1,173 +1,97 @@
-# Runbook — ativar a doutrina de packaging (uma vez só)
+# Disponibilizar a distribuição Striva Sales
 
-> **CONCLUÍDO em 2026-08-14. Este runbook é histórico** — guardado porque descreve o
-> procedimento e as armadilhas de cada passo, não porque haja algo a fazer.
->
-> | Passo | Estado | Prova |
-> |---|---|---|
-> | 1–2. Pacotes públicos | feito | `docker pull` anônimo resolve as três |
-> | 3. `imagens-ok` obrigatório | feito | `protection` → `verify, build-and-size, invariants, e2e, imagens-ok` |
-> | 4. Primeira release completa | feito | v1.3.0; `1.3.0` e `stable` nos três pacotes |
-> | 5. Tag de ensaio apagada | feito | `docs-doutrina-packaging` → 404 nos três |
->
-> Reconfira na fonte antes de confiar nesta tabela — foi por confiar numa nota de estado
-> que a doutrina passou um dia inteiro afirmando que o `imagens-ok` não bloqueava, depois
-> de ele já bloquear.
+Este roteiro libera a distribuição independente para instalações. O repositório
+foi renomeado para `welltonsoaress/striva-sales` e sua descrição foi atualizada.
+Esta implementação ainda precisa ser revisada, enviada ao repositório e passar
+pelos workflows; nenhuma release ou imagem Striva foi publicada como parte
+deste trabalho local.
 
-Este documento existe porque a entrega da [doutrina de packaging](../doctrine/packaging.md)
-tem três passos que **não podem estar dentro do PR**: dois dependem de administração do
-repositório e um depende de as imagens existirem. Enquanto eles não forem dados, parte da
-doutrina é conselho, não gate — e o texto diz isso onde for o caso.
+## 1. Preparar o repositório
 
-Faça na ordem. Cada passo tem a verificação que prova que ele funcionou.
+1. Confirme que a conta mantenedora tem acesso de escrita e administração a
+   `welltonsoaress/striva-sales`. O histórico Git e as issues foram preservados
+   pelo rename do GitHub.
+2. A descrição já está configurada como: **“Striva Sales — CRM com agentes de
+   IA e WhatsApp, multi-organização e hospedagem própria.”**
+3. Envie a implementação revisada para a branch principal do repositório.
+   Não use o remote antigo como origem de releases nem de tags.
+4. Ative proteção da branch principal depois que os workflows rodarem. Confira
+   os nomes efetivamente emitidos pelo CI e exija `verify`, `build-and-size`,
+   `invariants`, `e2e` e `imagens-ok` quando disponíveis:
 
----
+   ```bash
+   gh api repos/welltonsoaress/striva-sales/branches/main/protection \
+     --jq '.required_status_checks.contexts|join(", ")'
+   ```
 
-## Antes de começar: a sonda
+   Não afirme que os checks estão ativos se a consulta falhar ou não os listar.
 
-Cole no shell. `curl` cru no GHCR responde `401`, e um corpo de erro não contém a versão
-procurada — o que faz qualquer checagem ingênua aprovar tudo.
+5. Configure `RELEASE_APP_CLIENT_ID` como variável do repositório e
+   `RELEASE_APP_PRIVATE_KEY` como secret do repositório para o GitHub App de
+   release. O workflow usa esse App para criar o PR e a tag; não substitua a
+   credencial por um `GITHUB_TOKEN` com escrita.
 
-```bash
-ghcr_status() {   # $1=imagem  $2=tag  → 200 existe | 404 não existe | 403 privado
-  local t
-  t=$(curl -s "https://ghcr.io/token?scope=repository:melgarafael/$1:pull&service=ghcr.io" \
-      | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
-  curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $t" \
-    -H 'Accept: application/vnd.oci.image.index.v1+json' \
-    "https://ghcr.io/v2/melgarafael/$1/manifests/$2"
-}
-```
+## 2. Migrar instalações existentes
 
-Estado no momento em que este runbook foi escrito (2026-08-13):
+O atualizador que acompanha a versão instalada `v1.19.0` consulta
+`ghcr.io/melgarafael/deskcommcrm`, `deskcomm-worker` e
+`deskcomm-scheduler`. O repositório renomeado não controla esse namespace,
+portanto uma release de transição publicada pelo Striva não consegue corrigir
+sozinha o atualizador antigo.
 
-```console
-$ ghcr_status deskcommcrm 1.2.1        → 200
-$ ghcr_status deskcommcrm stable       → 404   (o canal ainda não existe)
-$ ghcr_status deskcomm-worker latest   → 403   (o pacote ainda não existe)
-```
-
----
-
-## 1. Merge do PR na `main`
-
-O push na `main` dispara `publish-image.yml`, que **cria** os dois pacotes novos
-(`deskcomm-worker`, `deskcomm-scheduler`) publicando `main` e `latest` neles.
-
-**Verificação:**
+Depois de publicar `striva-v1.0.0` e tornar públicas as três imagens, use o
+bootstrap independente do kit para migrar uma cópia ensaiada da instalação
+legada. Ele valida a release no repositório próprio, confere os metadados OCI e
+baixa as três imagens antes do backup, checkout ou reinício:
 
 ```bash
-gh run list --workflow=publish-image.yml --limit 3    # o run da main ficou verde?
-ghcr_status deskcomm-worker latest                    # esperado agora: 403 (existe, privado)
+cd /caminho/da/instalacao
+curl -fsSLo /tmp/migrar-distribuicao.sh \\
+  https://raw.githubusercontent.com/welltonsoaress/striva-sales/striva-v1.0.0/hostgator-setup-kit/migrar-distribuicao.sh
+bash /tmp/migrar-distribuicao.sh "$PWD" striva-v1.0.0
 ```
 
-`403` aqui é **progresso**, não erro: significa que o pacote passou a existir. `404` significa
-que o run não publicou — investigue o run antes de seguir.
+O script exige que app, worker e scheduler estejam saudáveis; preserva a
+identidade Compose, cria backup do banco e das sessões do WhatsApp e tenta
+restaurar as imagens anteriores se a atualização ou a verificação final falhar.
+Se a release ou qualquer imagem não existir ou não corresponder ao commit,
+nenhum código, banco ou serviço é alterado. Faça o ensaio em cópia isolada; não
+use uma VPS de cliente como primeiro teste.
 
-## 2. Tornar os dois pacotes novos PÚBLICOS
+Ensaie a atualização e o rollback numa cópia de instalação antiga, incluindo
+`.env` com IDs de imagem locais, digest, serviços em versões diferentes e
+instalação manual posterior da mesma versão. Não use uma VPS de cliente como
+ambiente de ensaio.
 
-**É o passo que mais trava na estreia de uma imagem, e ele é manual.** Todo pacote recém-criado
-no GHCR nasce privado, e repositório público não muda isso. Enquanto for privado, o
-`docker compose pull` de **toda VPS** é negado — e como `pull` de um serviço com `image:` falha
-a operação inteira, a atualização de um cliente morre depois do `git checkout` e do banco.
+## 3. Publicar `striva-v1.0.0`
 
-Para cada um de `deskcomm-worker` e `deskcomm-scheduler`:
+1. Revise o fragmento `.changes/initial-striva-sales.md` e confirme que o
+   changelog só contém notas da identidade Striva.
+2. Rode os gates de CI. A release é criada em rascunho por
+   `.github/workflows/release.yml`; o workflow de publicação constrói as três
+   imagens do mesmo commit.
+3. Confira a tag exata `striva-v1.0.0` e confirme que o app, worker e scheduler
+   estão públicos no GHCR com tag `1.0.0`:
 
-> github.com/users/melgarafael/packages/container/`<pacote>`/settings → Danger Zone →
-> Change visibility → **Public**
+   - `ghcr.io/welltonsoaress/striva-sales:1.0.0`
+   - `ghcr.io/welltonsoaress/striva-worker:1.0.0`
+   - `ghcr.io/welltonsoaress/striva-scheduler:1.0.0`
 
-Enquanto estiver aqui, ligue também **Inherit access from repository**, para o pacote seguir a
-permissão do repositório em vez de uma lista própria.
+4. Confirme os manifests dos três pacotes e a versão/revisão OCI antes de
+   publicar a release. Se uma imagem faltar, mantenha o rascunho e corrija o
+   pipeline. Não faça build na VPS.
+5. Só depois das verificações, publique a release. Rode instalação fresca e
+   atualização de uma cópia legada e confira `/api/v1/health`, worker,
+   scheduler, proxy e os crons.
 
-**Verificação:**
+## 4. Aplicar numa instalação existente
 
-```bash
-for i in deskcommcrm deskcomm-worker deskcomm-scheduler; do
-  echo "$i: $(ghcr_status $i latest)"
-done
-# esperado: 200 nos três
-```
+O dono escolhe a janela. Faça backup, confira domínio e acesso SSH, atualize
+usando `hostgator-setup-kit/update.sh`, e confira saúde dos serviços e WhatsApp.
+Depois da release, a administração da plataforma aplica o padrão Striva em
+`/admin/marca`; a operação é auditada e invalida o cache. Marcas configuradas
+por organização permanecem intactas.
 
-## 3. `imagens-ok` vira status check obrigatório
-
-Só agora, e a ordem importa: um required check que não existe na base dos PRs já abertos
-bloqueia **todos** eles até que cada um faça rebase. Depois do merge, `imagens-ok` existe na
-`main` e todo PR novo já nasce com ele.
-
-```bash
-gh api -X PATCH repos/melgarafael/DeskcommCRM/branches/main/protection/required_status_checks \
-  -f 'checks[][context]=verify' \
-  -f 'checks[][context]=build-and-size' \
-  -f 'checks[][context]=invariants' \
-  -f 'checks[][context]=e2e' \
-  -f 'checks[][context]=imagens-ok'
-```
-
-> Use **`imagens-ok`**, não `build-and-push`. O job de build virou matriz de três imagens, e o
-> nome do check passou a ser `build-and-push (deskcommcrm, …)` — exigir cada um pelo nome faria
-> uma quarta imagem, um dia, escapar do gate em silêncio. `imagens-ok` é o job de fachada que
-> existe exatamente para dar um nome estável.
-
-**Verificação:**
-
-```bash
-gh api repos/melgarafael/DeskcommCRM/branches/main/protection \
-  --jq '.required_status_checks.contexts|join(", ")'
-# esperado: verify, build-and-size, invariants, e2e, imagens-ok
-```
-
-Feito isso, **remova a "Pendência de ativação"** do invariante 2 em
-[`../doctrine/packaging.md`](../doctrine/packaging.md) e as ressalvas correspondentes em
-`CLAUDE.md` e `CONTRIBUTING.md`. Deixar a ressalva de pé depois de a pendência ter sido
-resolvida transforma a doutrina em documento que subestima a si mesmo — o defeito espelhado
-do que ela veio consertar.
-
-## 4. Primeira release completa
-
-Só uma tag `v*` publica os números de versão e o canal `stable`. Até ela existir, o default
-`:stable` do compose não resolve, e o caminho de avaliação (clonar e rodar `up -d` sem `.env`)
-não sobe. Siga o §Checklist de release da doutrina.
-
-**Verificação:**
-
-```bash
-for i in deskcommcrm deskcomm-worker deskcomm-scheduler; do
-  echo "$i X.Y.Z: $(ghcr_status $i X.Y.Z)  stable: $(ghcr_status $i stable)"
-done
-# esperado: 200 em todos
-
-docker run --rm ghcr.io/melgarafael/deskcommcrm:X.Y.Z \
-  node -e 'console.log(process.env.APP_VERSION)'
-# esperado: X.Y.Z   (antes desta release, `undefined` — nenhuma imagem publicada a carrega)
-```
-
-## 5. Ensaio numa VPS real
-
-O item 11 do checklist de release, e o único que o CI não exercita. Numa instalação **não
-fresca**, a partir da versão anterior:
-
-```bash
-bash hostgator-setup-kit/update.sh
-curl -s https://<DOMAIN>/api/v1/health | jq -r '.data.version'   # esperado: X.Y.Z
-curl -s -o /dev/null -w '%{http_code}\n' https://<DOMAIN>/       # esperado: 307
-grep -E '^(APP|WORKER|SCHEDULER)_IMAGE=' .env                    # esperado: as três em X.Y.Z
-docker compose -f docker-compose.prod.yml ps                     # esperado: tudo healthy
-```
-
-O que este ensaio prova e nenhum teste do CI prova: que uma VPS **saiu do estado A e chegou ao
-estado B**. O CI prova que os scripts fazem o que dizem — não que a máquina de alguém mudou.
-É o caso U6 de [`../testing/user-journey-map.md`](../testing/user-journey-map.md), declarado
-como não coberto de propósito.
-
----
-
-## Enquanto os passos 1–4 não acontecem
-
-Nada quebra, e isso é por construção:
-
-| Quem | O que acontece |
-|---|---|
-| Parque instalado | segue igual — o compose novo só chega a uma VPS pelo `git checkout` de uma tag `v*` nova |
-| Instalação nova | o `install.sh` sonda o registry, vê que o trio não está publicado, **avisa** e constrói worker/scheduler localmente (lento, funciona) |
-| Avaliação (`up -d` sem `.env`) | o app não sobe até o `stable` existir — o passo 4 resolve |
-| PR de contribuidor | `imagens-ok` roda e informa; não bloqueia até o passo 3 |
+Para mudar o diretório de uma VPS legada, use o procedimento e o helper em
+[`deploy.md`](deploy.md#mudança-de-diretório-de-uma-instalação-legada). A pasta
+local do desenvolvimento não altera caminhos de VPS.

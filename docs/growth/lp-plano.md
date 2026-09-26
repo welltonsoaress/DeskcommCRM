@@ -1,7 +1,7 @@
-# Plano da Landing Page — deskcomm.com.br
+# Plano da Landing Page — Striva Sales
 
 > Plano de conteúdo, layout, narrativa e direção de arte. **Não é código.**
-> Decisões travadas: hero **A Mesa Viva** · eixo **dono do negócio** com trilhas paralelas para dev · banner HostGator **reconstruído responsivo** com a marca deles preservada.
+> Direção da marca: símbolo **S geométrico modular** · roxo-base `#7C3AED` · hero mostra os módulos conectados · banner HostGator **reconstruído responsivo** com a marca deles preservada.
 
 ---
 
@@ -15,7 +15,7 @@ E você pediu exatamente camadas com motion no scroll. Não é contradição sua
 
 **A reconciliação que proponho** mantém o espírito do documento, que é o que importa. Ele define quatro testes, e o primeiro é: *"Posso explicar o que essa animação comunica em uma frase? Se a resposta é 'fica bonito', remove."*
 
-Então a regra da LP fica: **camada que se move precisa estar explicando o produto.** O lead atravessando a mesa se move porque **é isso que o lead faz**. A peça do agente acende quando o turno dele começa porque **é quando ele age**. Profundidade por profundidade — três planos deslizando em velocidades diferentes só para dar sensação de 3D — continua proibida, aqui também.
+Então a regra da LP fica: **camada que se move precisa estar explicando o produto.** O lead atravessando o fluxo se move porque **é isso que o lead faz**. A peça do agente acende quando o turno dele começa porque **é quando ele age**. Profundidade por profundidade — três planos deslizando em velocidades diferentes só para dar sensação de 3D — continua proibida, aqui também.
 
 Na prática isso separa duas coisas que parecem a mesma:
 
@@ -54,7 +54,7 @@ Seção que não responde nenhuma delas sai do plano.
 ## 2. Restrições não-negociáveis
 
 **Do design system** (`09-anti-patterns.md`):
-Atkinson Hyperlegible + IBM Plex Mono · sem Inter/Geist · **sem gradiente roxo/azul/rosa** · botão primário sólido Sage `#67885d` · sem glassmorphism · Phosphor duotone (nunca Lucide, nunca ícone Sparkles para IA — usar `Brain`) · fundo `#faf9f6`, nunca branco puro · sombras `rgba(20,18,14,X)`, nunca preto puro · sem `transition: all`.
+Atkinson Hyperlegible + IBM Plex Mono · sem Inter/Geist · **sem gradiente roxo/azul/rosa** · botão primário sólido `#7C3AED` · sem glassmorphism · Phosphor duotone (nunca Lucide, nunca ícone Sparkles para IA — usar `Brain`) · fundo `#faf9f6`, nunca branco puro · sombras `rgba(20,18,14,X)`, nunca preto puro · sem `transition: all`.
 
 **Do GEO** (pesquisa de 27/07):
 Renderização no servidor obrigatória — **nenhum crawler de IA executa JavaScript**. Todo o conteúdo textual existe no HTML servido; o scrollytelling é camada por cima. `<html lang="pt-BR">`, `og:locale=pt_BR`, hreflang no `<head>`. Data de atualização visível na página.
@@ -71,7 +71,7 @@ As camadas animam só `transform` e `opacity` (GPU). Imagens em AVIF com fallbac
 
 ```
 HEADER (sticky, fino)
- ├─ 1. HERO — A Mesa Viva
+ ├─ 1. HERO — O S em Movimento
  ├─ 2. O problema — dois vilões nomeados
  ├─ 3. A virada — Sistema Operacional Comercial Vivo
  ├─ 4. SCROLLYTELLING — A vida de um lead        ◄ peça central
@@ -94,28 +94,28 @@ FOOTER
 Fino, sticky, fundo `#faf9f6` com `border-bottom` de 1px que só aparece após 40px de scroll.
 
 ```
-[■ DeskcommCRM]     Como funciona · Prova · Instalar · Preço      [GitHub ⭐] [Instalar na VPS]
+[S modular · Striva Sales]     Como funciona · Prova · Instalar · Preço      [GitHub ⭐] [Instalar na VPS]
 ```
 
-- `[GitHub ⭐ 116]` — secundário, ghost, **com contador ao vivo**. Decisão do Rafael, contra minha recomendação inicial e com argumento melhor que o meu: 116 para um CRM brasileiro com 3 meses de vida lê como tração real, não como hobby — a régua de ~1k que a pesquisa usa é de projeto anglófono de infraestrutura, outro mercado. O número é buscado da API do GitHub e cacheado; nunca hardcoded (prova social escrita à mão apodrece e fica menor que a realidade).
-- `[Instalar na VPS]` — primário sólido Sage.
+- `[GitHub ⭐]` — secundário, ghost, com contador ao vivo lido da API e cacheado; nunca hardcoded.
+- `[Instalar na VPS]` — primário sólido no roxo da marca (`#7C3AED`).
 - Mobile: logo + botão primário; o resto vira menu.
 
 ---
 
-## 1. HERO — A Mesa Viva
+## 1. HERO — O S em Movimento
 
 ### O conceito
 
-O nome do produto virando imagem. **Deskcomm = Desk + comm — o comercial de mesa.** O hero é uma mesa isométrica vista de cima, onde a operação comercial inteira é **uma superfície só**: a conversa, o funil, o agente, o follow-up — peças distintas ligadas por trilhas visíveis.
+O símbolo vira imagem: um **S geométrico formado por módulos conectados**, com um módulo roxo em destaque. O hero mostra a operação comercial como um fluxo — conversa, funil, agente e follow-up — ligados por trilhas visíveis.
 
-Por que isso é a escolha certa e não outra: é a única imagem desta página que **nenhum concorrente pode usar**, porque ela nasce da etimologia do seu nome. Um CRM genérico pode mostrar um kanban. Nenhum pode mostrar "a mesa".
+Por que isso combina com a identidade: o S modular deriva da nova marca e comunica movimento entre etapas, sem depender de uma metáfora literal.
 
-E ela carrega a tese sem precisar dizê-la: se tudo está na mesma mesa e as peças estão ligadas, **nada cai no chão**. É o "sistema vivo" como fato visual, não como adjetivo.
+E ela carrega a tese sem precisar dizê-la: as peças estão ligadas por trilhas e cada etapa leva à próxima. É o "sistema vivo" como fato visual, não como adjetivo.
 
 ### Layout
 
-Assimétrico, não centralizado. Copy à esquerda ocupando ~42%, mesa à direita sangrando para fora da margem — sugere que a mesa continua além da tela.
+Assimétrico, não centralizado. Copy à esquerda ocupando ~42%, S modular à direita sangrando para fora da margem — sugere que o fluxo continua além da tela.
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -137,7 +137,7 @@ Assimétrico, não centralizado. Copy à esquerda ocupando ~42%, mesa à direita
 
 ### Copy
 
-> **Eyebrow:** `Desk + comm — o comercial de mesa`
+> **Eyebrow:** `Striva Sales — operação comercial conectada`
 >
 > **H1:** Sua operação comercial numa mesa só.
 > **E nada morre em cima dela.**
@@ -160,7 +160,7 @@ Cinco PNGs empilhados, ordem de baixo para cima:
 | 2 | Trilhas de conexão entre as peças | acendem em sequência ao entrar (uma vez) |
 | 3 | Peças: conversa, funil, agente, follow-up, log | estáticas |
 | 4 | Rótulos flutuantes das peças | fade + 8px rise, stagger 50ms |
-| 5 | O lead (um ponto sage) | percorre a trilha da conversa até o funil |
+| 5 | O lead (um ponto roxo) | percorre a trilha da conversa até o funil |
 
 **Movimento no scroll:** a câmera **não** faz parallax de profundidade. Ela faz uma coisa só e explicável: conforme o scroll desce, a mesa **inclina levemente** (de ~18° para ~12° de isometria), como quem se aproxima para olhar de perto. Uma frase: *"você está chegando mais perto da mesa"*. É a transição para a §4, que acontece **em cima da mesma mesa**.
 
@@ -339,8 +339,8 @@ Imagem: a mesma tela em duas marcas diferentes, lado a lado.
 Bloco de código real, copiável:
 
 ```bash
-git clone https://github.com/melgarafael/DeskcommCRM.git
-cd DeskcommCRM/hostgator-setup-kit
+git clone https://github.com/welltonsoaress/striva-sales.git
+cd striva-sales/hostgator-setup-kit
 bash install.sh
 ```
 
@@ -370,7 +370,7 @@ Sem tabela de planos — não temos planos. Um bloco só, honesto.
 
 Formato deliberado (é o que a pesquisa de GEO mediu como eficaz): **pergunta literal como H2 visível**, resposta direta nas duas primeiras frases, número verificável quando houver. Como HTML visível — não como JSON-LD escondido, que o Google descontinuou para FAQ.
 
-1. Quanto custa o DeskcommCRM?
+1. Quanto custa o Striva Sales?
 2. Preciso saber programar para instalar?
 3. Qual VPS eu preciso?
 4. Funciona com WhatsApp comum?
@@ -389,11 +389,11 @@ A 9 é a mais importante e quase ninguém responde: *"Cada mensagem passa por se
 
 Reconstruído em HTML fluido (o original é 1680×600 fixo e quebra no celular), **mantendo os sinais visuais da HostGator** — laranja `#F67922`, navy `#073f60` — como um bloco de **parceiro claramente delimitado**. A ruptura de paleta vira intencional em vez de acidental: uma faixa de largura total, com respiro antes e depois, lida como "aqui começa outra coisa".
 
-Removidos: **OpenClaw** e **Hermes** — não têm relação com o Deskcomm e diluem a conversão.
+Removidos: **OpenClaw** e **Hermes** — não têm relação com o Striva Sales e diluem a conversão.
 
 > **Eyebrow:** Parceiro oficial
 > **Título:** Soberania com IA é na HostGator
-> **Corpo:** Datacenter no Brasil, sem transferência internacional de dados. É onde o DeskcommCRM foi feito para rodar.
+> **Corpo:** Datacenter no Brasil, sem transferência internacional de dados. É uma opção de hospedagem para o Striva Sales.
 > **CTA:** Assinar a VPS com desconto da parceria →
 > **Microcopy:** link de parceria — assinar por ele apoia o projeto
 
@@ -410,7 +410,7 @@ Quatro colunas + barra inferior.
 | Preço | Arquitetura | YouTube | Segurança |
 | FAQ | Doutrina do sistema vivo | Instagram | Contribuir |
 
-Barra inferior: `DeskcommCRM · MIT · Feito no Brasil` · **`Página atualizada em [data]`** — visível, não só no schema: a pesquisa mediu que **75% das páginas citadas por IA foram atualizadas nos últimos 12 meses**, e a data de atualização discrimina melhor que a de publicação.
+Barra inferior: `Striva Sales · MIT · Feito no Brasil` · **`Página atualizada em [data]`** — visível, não só no schema: a pesquisa mediu que **75% das páginas citadas por IA foram atualizadas nos últimos 12 meses**, e a data de atualização discrimina melhor que a de publicação.
 
 ---
 
@@ -443,8 +443,8 @@ Barra inferior: `DeskcommCRM · MIT · Feito no Brasil` · **`Página atualizada
 Isometric 3D render, 30-degree camera angle, orthographic projection.
 Matte clay material — soft, slightly rough, no gloss, no chrome, no glass, no neon.
 Palette strictly limited to: warm off-white #faf9f6 background, surface #ffffff,
-warm greige #e7e3da for structure, desaturated sage green #506d48 for active
-elements, muted amber #b8863b for warnings only. No other colors.
+warm greige #e7e3da for structure, brand violet #7C3AED for active elements,
+muted amber #b8863b for warnings only. No other colors.
 Soft studio lighting from upper left, long soft shadows in warm grey rgba(20,18,14,0.10).
 No text, no labels, no UI chrome, no icons inside the render.
 Generous empty space around the subject. Calm, precise, architectural.
@@ -468,11 +468,11 @@ floating, seen from above at 30 degrees. On the desk sit five distinct low-profi
 modules connected by thin recessed channels carved into the desk surface:
 1. a rounded module suggesting a conversation thread (stacked soft plates)
 2. a module of four vertical columns of small tiles (a pipeline)
-3. a central rounded module, slightly taller, in sage green (the agent)
+3. a central rounded module, slightly taller, in brand violet (the agent)
 4. a small circular module with a subtle ring (follow-up timer)
 5. a flat wide module of thin horizontal lines (the log)
-The channels connecting them are recessed grooves, sage green at the bottom.
-A single small sage sphere sits at the entrance of the conversation module.
+The channels connecting them are recessed grooves, violet at the bottom.
+A single small violet sphere sits at the entrance of the conversation module.
 Nothing is detached; every module touches at least two channels.
 ```
 

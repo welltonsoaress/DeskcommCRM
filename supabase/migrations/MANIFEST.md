@@ -295,3 +295,11 @@ To re-apply on a fresh Supabase project, replay the migrations in version order 
 | `20260911120000` | `0236_opt_in_de_chamada_de_voz` | A chamada de voz nasce DESLIGADA por organização (`org_voice_calls`), com quem aceitou o risco e quando. Ausência de linha é "desligado" — aplicar não liga nada para ninguém. Leitura org-flat, escrita de admin no banco. Baseline INSTALL/UPDATE idempotente. |
 | `20260915140000` | `0237_assistente_gestao_whatsapp` | Vinculo gestor/comercial, verificação, mensagens separadas e outbox por organização; RLS admin e função desligada por ausência de vinculo. |
 | `20260924190000` | `0238_comandos_do_gestor` | Solicitações de ação do gestor com confirmação e estado durável, isoladas por organização e visíveis ao admin. |
+
+| `20260925100000` | `0239_agent_cases_realtime` | Inclui `agent_cases` na publicação Realtime para atualizar contagem e avisos de ação humana; o evento é filtrado por organização e os detalhes vêm da rota autenticada minimizada. |
+
+| `20260925120000` | `0240_system_distribution_identity` | Registra identidade Striva, tag/revisão realmente executadas e referência exata da release consultada; agentes antigos continuam compatíveis por defaults vazios. |
+
+| `20260926100000` | `0241_case_human_wait_occurrence` | Marca cada entrada em `awaiting_human` sem confundir edições comuns do caso com uma nova ocorrência; sustenta avisos estáveis e reabertura após novo retorno ao humano. |
+
+| `20260926120000` | `0242_striva_product_brand_default` | Migra para Striva Sales apenas o nome padrão legado semeado do ambiente e sem logo próprio; mantém marcas da instalação escolhidas por alguém, logos e marcas das organizações, registrando a conversão no audit log. |

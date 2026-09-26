@@ -19,7 +19,13 @@ import { List } from "@/lib/ui/icons";
  * navegação é uma gaveta temporária: abrir/fechar não escreve esse cookie, para
  * não trocar a preferência que a pessoa escolheu no laptop.
  */
-export function MobileSidebar() {
+export function MobileSidebar({
+  pendingCasesCount = 0,
+  pendingCasesUnknown = false,
+}: {
+  pendingCasesCount?: number;
+  pendingCasesUnknown?: boolean;
+}) {
   const t = useT();
   const [open, setOpen] = useState(false);
 
@@ -43,6 +49,8 @@ export function MobileSidebar() {
         <SheetTitle className="sr-only">{t("Navegação principal")}</SheetTitle>
         <SidebarContent
           collapsed={false}
+          pendingCasesCount={pendingCasesCount}
+          pendingCasesUnknown={pendingCasesUnknown}
           showCollapseControl={false}
           onNavigate={() => setOpen(false)}
         />

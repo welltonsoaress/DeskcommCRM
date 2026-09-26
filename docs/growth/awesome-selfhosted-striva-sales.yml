@@ -1,6 +1,6 @@
 # Arquivo pronto para awesome-selfhosted-data.
 #
-# Destino: software/deskcommcrm.yml  (kebab-case, um item por PR)
+# Destino: software/striva-sales.yml  (kebab-case, um item por PR)
 # Só copiar o conteúdo abaixo desta linha de comentários. NÃO enviar os campos
 # stargazers_count, updated_at, current_release e commit_history: um bot do
 # repositório os injeta depois do merge. Preenchê-los à mão é o sinal mais
@@ -13,9 +13,9 @@
 # Nomes de tag/plataforma conferidos contra o campo `name:` de cada arquivo do
 # repositório em 28/07/2026 — não contra o nome do arquivo, que é diferente.
 
-name: DeskcommCRM
+name: Striva Sales
 website_url: https://deskcomm.com.br
-source_code_url: https://github.com/melgarafael/DeskcommCRM
+source_code_url: https://github.com/welltonsoaress/striva-sales
 description: Sales CRM with built-in AI agents that answer, qualify and advance deals over WhatsApp. Multi-tenant with row-level isolation, a per-tenant RAG knowledge base, and an audit log of every action the AI takes.
 licenses:
   - MIT

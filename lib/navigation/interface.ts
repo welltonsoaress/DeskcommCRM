@@ -36,6 +36,7 @@ export function essencial(d: NavMetadata, role: Role | null, platform = false): 
   return (
     d.href === PORTAS_ESSENCIAIS[0] ||
     d.href === PORTAS_ESSENCIAIS[1] ||
+    (d.href === "/app/ai/cases" && canSee(d, platform, role)) ||
     (d.href === PORTAS_ESSENCIAIS[2] && (platform || role === "admin"))
   );
 }

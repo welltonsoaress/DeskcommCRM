@@ -1,4 +1,4 @@
-# AGENTS.md — DeskcommCRM
+# AGENTS.md — Striva Sales
 
 > Contrato para **qualquer** agente de código (Codex, Cursor, Copilot, Amp, Claude Code).
 > Este arquivo é o núcleo portável. A **doutrina completa e não-negociável vive em
@@ -9,7 +9,7 @@
 
 ## Objetivo do projeto
 
-Sistema operacional de vendas open source com agentes de IA nativos, multi-nicho,
+Striva Sales é um sistema operacional de vendas open source com agentes de IA nativos, multi-nicho,
 WhatsApp como canal primário (via WAHA). Multi-tenant com RLS desde o dia 1, LGPD
 nativa. Monetização = self-host em VPS, não assinatura. Posicionamento: [`VISION.md`](VISION.md).
 
@@ -36,13 +36,13 @@ v1.6.0 — seis minors de atraso, e nenhum teste a vigiava. Afirmação de vers�
 release; comando não. A que está publicada agora:
 
 ```bash
-git ls-remote --tags --refs origin 'refs/tags/v*' \
-  | sed 's#.*refs/tags/v##' | awk '!/-/' | sort -V | tail -1   # awk, nao grep -v -- '-':
+git ls-remote --tags --refs origin 'refs/tags/striva-v*' \
+  | sed 's#.*refs/tags/striva-v##' | awk '!/-/' | sort -V | tail -1   # awk, nao grep -v -- '-':
                                                                 # em maquina com ugrep aquele nao roda
 ```
 
 O `package.json` **não** é a fonte da versão do produto (segue em `0.1.0`, e é assim de
-propósito). A fonte é a tag `v*` mais a seção do `CHANGELOG.md` — que é tela de produto, lida
+propósito). A fonte é a tag própria `striva-v*` mais a seção do `CHANGELOG.md` — que é tela de produto, lida
 pelo dono da VPS. Como o número é decidido: [`docs/doctrine/versionamento.md`](docs/doctrine/versionamento.md).
 
 ## Estrutura que importa
@@ -100,15 +100,13 @@ de instalação fresca. `followup-journey`, `webhooks` e `capacidades-do-agente`
 `.github/workflows/publish-image.yml`: `imagens-ok` = as três imagens Docker constroem. **Obrigatório
 desde 2026-08-13.**
 
-**No repositório original**, os cinco eram checks obrigatórios na branch protection da `main` — medido em 2026-08-14 @ `741c4ec8`:
+**Na distribuição Striva Sales, branch protection ainda precisa ser medida após a publicação do repositório próprio.** Confira então:
 
 ```console
-$ gh api repos/melgarafael/DeskcommCRM/branches/main/protection --jq '.required_status_checks.contexts|join(", ")'
-verify, build-and-size, invariants, e2e, imagens-ok
+$ gh api repos/welltonsoaress/striva-sales/branches/main/protection --jq '.required_status_checks.contexts|join(", ")'
 ```
 
-Este fork precisa configurar a própria proteção; a medição histórica acima não
-prova que `welltonsoaress/DeskcommCRM` já exige esses checks.
+Não use a proteção do repositório anterior como prova de que o Striva exige os checks.
 
 > Este bloco estava errado em quatro pontos até 2026-08-14 (dizia "três checks", "28 das 32
 > specs", "e2e não é obrigatório ainda" e listava como excluídas três specs que já rodavam).
@@ -127,7 +125,7 @@ prova que `welltonsoaress/DeskcommCRM` já exige esses checks.
 
 ### Marca própria (white-label) — o produto é revendido, e o nome não é seu
 
-- **Nunca escreva "Deskcomm"/"DeskcommCRM" em código que alcança o usuário.** `tests/unit/branding.test.ts` varre `app|components|lib|workers|hooks` e reprova; a allowlist **só encolhe**.
+- **Nunca deixe a marca antiga Deskcomm/DeskcommCRM chegar à interface.** A marca padrão é Striva Sales; a marca da organização e da instalação continua resolvida pelo banco. `tests/unit/branding.test.ts` protege contra vazamento legado e contra marca fixa em superfícies white-label.
 - A marca resolve do **banco** (`platform_branding` para a instalação, `organizations.settings.branding` para a organização). `APP_NAME`/`APP_LOGO_URL`/`APP_ACCENT_HEX` no `.env` são **semente e piso de rollback**, não a fonte.
 - Precisa da marca **fora do DOM** (e-mail, remetente, ícone, `issuer` do MFA)? Use `marcaDaSaida()` de `lib/branding/saida.ts` — um hex e uma frente legível, tema claro. Nunca entregue `MarcaResolvida` a um template de e-mail.
 - Resolvedor de marca **nunca lança**: ele roda em `app/layout.tsx`, e um throw ali é 500 em todas as telas.

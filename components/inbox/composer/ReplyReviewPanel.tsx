@@ -1,5 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
+
+import { X } from "@/lib/ui/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import { showApiError } from "@/components/feedback/ApiErrorToast";
@@ -7,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useT } from "@/hooks/i18n/useT";
+import { useAuth } from "@/hooks/auth/AuthProvider";
 type Draft = {
   id: string;
   revision: string;
@@ -23,11 +26,34 @@ export function ReplyReviewPanel({
   conversationId: string;
   disabled?: boolean;
 }) {
+  const { activeOrg } = useAuth();
+  const organizationId = activeOrg?.orgId ?? null;
+  const interactionKey = `${organizationId ?? "sem-org"}:${conversationId}`;
+  return (
+    <ReplyReviewPanelInstance
+      key={interactionKey}
+      organizationId={organizationId}
+      conversationId={conversationId}
+      disabled={disabled}
+    />
+  );
+}
+
+function ReplyReviewPanelInstance({
+  organizationId,
+  conversationId,
+  disabled,
+}: {
+  organizationId: string | null;
+  conversationId: string;
+  disabled?: boolean;
+}) {
   const t = useT(),
     qc = useQueryClient(),
-    key = ["reply-drafts", conversationId];
+    key = ["reply-drafts", organizationId, conversationId];
   const query = useQuery({
     queryKey: key,
+    enabled: organizationId !== null,
     queryFn: () =>
       apiClient.get<{ data: { drafts: Draft[] } }>(
         `/api/v1/conversations/${conversationId}/draft-reply`,
@@ -35,18 +61,25 @@ export function ReplyReviewPanel({
     refetchInterval: 4000,
     retry: false,
   });
-  const [edits, setEdits] = useState<Record<string, string>>({}),
-    [feedback, setFeedback] = useState(""),
-    [busy, setBusy] = useState(false),
-    [notice, setNotice] = useState<{
-      draftId: string;
-      message: string;
-      kind: "success" | "error";
-    } | null>(null);
+  const [edits, setEdits] = useState<Record<string, string>>({});
+  const [feedback, setFeedback] = useState("");
+  const [busy, setBusy] = useState(false);
+  // A tela do Inbox começa compacta; gerar ou abrir a sugestão expande o painel.
+  const [expanded, setExpanded] = useState(false);
+  const [notice, setNotice] = useState<{
+    draftId: string;
+    message: string;
+    kind: "success" | "error";
+  } | null>(null);
+  const requestInFlight = useRef(false);
   const draft = query.data?.data.drafts[0];
+  const canReopen = draft && !["sent", "dismissed", "stale"].includes(draft.status);
   const body = draft ? (edits[draft.id] ?? draft.edited_body ?? draft.original_body ?? "") : "";
   async function generate() {
+    if (requestInFlight.current) return;
+    requestInFlight.current = true;
     setNotice(null);
+    setExpanded(true);
     setBusy(true);
     try {
       await apiClient.post(`/api/v1/conversations/${conversationId}/draft-reply`, {});
@@ -54,11 +87,13 @@ export function ReplyReviewPanel({
     } catch (e) {
       showApiError(e);
     } finally {
+      requestInFlight.current = false;
       setBusy(false);
     }
   }
   async function decide(action: "approve" | "reject") {
-    if (!draft) return;
+    if (!draft || requestInFlight.current) return;
+    requestInFlight.current = true;
     setBusy(true);
     setNotice(null);
     try {
@@ -68,6 +103,7 @@ export function ReplyReviewPanel({
         body,
         feedback,
       });
+      if (action === "approve") setExpanded(false);
       setNotice({
         draftId: draft.id,
         kind: "success",
@@ -88,6 +124,7 @@ export function ReplyReviewPanel({
       });
       await qc.invalidateQueries({ queryKey: key });
     } finally {
+      requestInFlight.current = false;
       setBusy(false);
     }
   }
@@ -101,6 +138,27 @@ export function ReplyReviewPanel({
     stale: "Sugestão obsoleta: a conversa mudou",
     failed: "Não foi possível concluir a sugestão ou o envio",
   };
+  if (!expanded) {
+    return (
+      <section
+        className="mb-3 flex items-center justify-between gap-2 rounded-md border bg-muted/30 px-3 py-2"
+        aria-label={t("Assistência do agente")}
+      >
+        <p className="truncate text-xs text-muted-foreground">
+          {t(draft ? (statuses[draft.status] ?? "Sugestão disponível") : "Assistência do agente")}
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={disabled || busy}
+          onClick={() => (canReopen ? setExpanded(true) : generate())}
+        >
+          {t(canReopen ? "Ver sugestão" : "Sugerir resposta")}
+        </Button>
+      </section>
+    );
+  }
   return (
     <section
       className="mb-3 space-y-2 rounded-md border bg-muted/30 p-3"
@@ -110,15 +168,28 @@ export function ReplyReviewPanel({
         <p className="text-sm font-medium">
           {t(draft ? (statuses[draft.status] ?? "Assistência do agente") : "Assistência do agente")}
         </p>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={disabled || busy}
-          onClick={generate}
-        >
-          {t(busy ? "Preparando…" : "Sugerir resposta")}
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled || busy}
+            onClick={generate}
+          >
+            {t(busy ? "Preparando…" : "Sugerir resposta")}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            aria-label={t("Fechar sugestão")}
+            title={t("Fechar sugestão")}
+            onClick={() => setExpanded(false)}
+          >
+            <X size={16} aria-hidden />
+          </Button>
+        </div>
       </div>
       {draft && (
         <>

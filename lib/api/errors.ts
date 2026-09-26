@@ -1,5 +1,5 @@
 /**
- * Códigos de erro canônicos da API DeskcommCRM.
+ * Códigos de erro canônicos da API Striva Sales.
  *
  * Adicionar novo código:
  *  1. Adicionar à enum/constante abaixo

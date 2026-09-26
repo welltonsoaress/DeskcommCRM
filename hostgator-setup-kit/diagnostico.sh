@@ -19,7 +19,7 @@
 # depender dele seria diagnosticar o passado com a ferramenta do passado. E
 # precisa poder ser baixado avulso, sem clonar nada:
 #
-#   curl -fsSL https://raw.githubusercontent.com/welltonsoaress/DeskcommCRM/main/hostgator-setup-kit/diagnostico.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/welltonsoaress/striva-sales/main/hostgator-setup-kit/diagnostico.sh | bash
 #
 # ── O que ele pode assumir que existe ────────────────────────────────────────
 # Medido numa VPS real: bash 5.1, docker, docker compose, curl, sed/awk/grep.
@@ -38,12 +38,12 @@ titulo() { printf '\n%s%s%s\n' "$B" "$*" "$Z"; }
 item()   { printf '  %s\n' "$*"; }
 
 # ── 0. Achar a instalação ────────────────────────────────────────────────────
-# O install.sh clona em ./deskcommcrm por padrão, mas o operador pode ter posto
+# O install.sh clona em ./striva-sales por padrão, mas o operador pode ter posto
 # em qualquer lugar. Procuramos no cwd, no caminho padrão, e por último varremos
 # — em profundidade limitada, para não passear pelo disco inteiro.
 achar_projeto() {
   local c
-  for c in . ./deskcommcrm /root/DeskcommCRM /root/deskcommcrm /opt/deskcommcrm /var/www/crm; do
+  for c in . ./striva-sales /root/striva-sales /opt/striva-sales /root/DeskcommCRM /root/deskcommcrm /opt/deskcommcrm /var/www/crm; do
     [ -f "$c/$COMPOSE_FILE" ] && { (cd "$c" && pwd); return 0; }
   done
   c="$(find /root /opt /home /var/www -maxdepth 4 -name "$COMPOSE_FILE" 2>/dev/null | head -1)"
@@ -52,13 +52,13 @@ achar_projeto() {
 }
 
 PROJETO="$(achar_projeto)" || {
-  printf '%s✖ Não achei uma instalação do DeskcommCRM nesta máquina.%s\n' "$R" "$Z"
+  printf '%s✖ Não achei uma instalação do Striva Sales nesta máquina.%s\n' "$R" "$Z"
   printf '  Rode este script de dentro da pasta do projeto (a que tem %s).\n' "$COMPOSE_FILE"
   exit 2
 }
 cd "$PROJETO" || exit 2
 
-printf '%s══ Diagnóstico do DeskcommCRM ══%s\n' "$B" "$Z"
+printf '%s══ Diagnóstico do Striva Sales ══%s\n' "$B" "$Z"
 item "${D}pasta: $PROJETO${Z}"
 item "${D}data:  $(date -u '+%Y-%m-%d %H:%M UTC')${Z}"
 

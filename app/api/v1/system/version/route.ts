@@ -11,8 +11,19 @@ import { fail, ok } from "@/lib/api/wrappers";
 import { loadAuthUser } from "@/lib/auth/server";
 import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  DISTRIBUTION_ID,
+  DISTRIBUTION_REPOSITORY,
+  releaseDaDistribuicaoVerificada,
+} from "@/lib/system/distribution";
 import { extractChangelogRange } from "@/lib/system/changelog";
-import { isRunStale, rollbackFoiSuperado, type RunStatus, type RunStep } from "@/lib/system/update-run";
+import {
+  isRunStale,
+  rollbackFoiSuperado,
+  updateDisponivel,
+  type RunStatus,
+  type RunStep,
+} from "@/lib/system/update-run";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +40,7 @@ export async function GET(_req: NextRequest): Promise<Response> {
   const { data: version, error: versionError } = await db
     .from("system_version")
     .select(
-      "current_version, latest_version, off_release, compare_failed, has_known_release, changelog_raw, agent_last_seen_at, updated_at",
+      "current_version, latest_version, off_release, compare_failed, has_known_release, changelog_raw, agent_last_seen_at, updated_at, current_distribution_id, current_release_tag, current_revision, latest_release_tag, latest_release_commit, release_repository",
     )
     .eq("id", 1)
     .maybeSingle();
@@ -89,17 +100,29 @@ export async function GET(_req: NextRequest): Promise<Response> {
     run?.finished_at,
     current,
     run,
+    { distributionId: version?.current_distribution_id, releaseTag: version?.current_release_tag },
   );
   const running =
     run?.status === "failed_rolled_back" && run.from_version && !rollbackSuperado
       ? run.from_version
       : current;
 
-  if (!user.is_platform_admin) {
+  if (!user.is_platform_admin || user.support) {
     return ok({ current_version: running, is_owner: false });
   }
 
   const latest = version?.latest_version ?? "";
+  const latestReleaseVerificada = releaseDaDistribuicaoVerificada({
+    version: latest,
+    repository: version?.release_repository,
+    tag: version?.latest_release_tag,
+    commit: version?.latest_release_commit,
+  });
+  const origemVerificada =
+    version?.release_repository === DISTRIBUTION_REPOSITORY &&
+    (latestReleaseVerificada ||
+      (!latest && Boolean(version?.compare_failed)) ||
+      (!latest && !version?.latest_release_tag && !version?.latest_release_commit));
   // A faixa INTEIRA entre o que está no ar e o que vai entrar, não só a seção
   // da versão-alvo. Mostrar só a alvo perdia aviso: quem pulava da 1.4.0 para a
   // 1.6.0 nunca lia a 1.4.1 nem a 1.5.0 — e a 1.4.1 existia para corrigir uma
@@ -108,13 +131,38 @@ export async function GET(_req: NextRequest): Promise<Response> {
   // O limite inferior é `running`, NUNCA `current`: depois de um rollback,
   // `current` nomeia a versão que quebrou, e a faixa sairia vazia justamente
   // para quem mais precisa lê-la.
-  const faixa = latest ? extractChangelogRange(version?.changelog_raw ?? "", latest, running) : null;
+  // O heartbeat de um agente legado pode ainda carregar tags e changelog do
+  // projeto anterior. Sem repositório + tag exata + commit verificáveis, nem
+  // a nota nem o número anunciado são dados de uma release utilizável.
+  const faixa = latestReleaseVerificada
+    ? extractChangelogRange(version?.changelog_raw ?? "", latest, running)
+    : null;
+  const targetDistribution = latestReleaseVerificada ? DISTRIBUTION_ID : "";
+  const temAtualizacao = latestReleaseVerificada && updateDisponivel(
+    running,
+    latest,
+    version?.current_distribution_id,
+    targetDistribution,
+    version?.compare_failed ?? false,
+  );
+  const notasDisponiveis = Boolean(faixa?.secoes.length);
 
   return ok({
     current_version: running,
     is_owner: true,
-    latest_version: latest,
-    update_available: Boolean(latest) && latest !== running,
+    latest_version: origemVerificada ? latest : "",
+    update_available: temAtualizacao,
+    release_source_unverified: !origemVerificada,
+    notes_unavailable:
+      temAtualizacao &&
+      latestReleaseVerificada &&
+      !notasDisponiveis,
+    distribution_id: version?.current_distribution_id ?? "",
+    current_release_tag: version?.current_release_tag ?? "",
+    current_revision: version?.current_revision ?? "",
+    latest_release_tag: origemVerificada ? version?.latest_release_tag ?? "" : "",
+    latest_release_commit: origemVerificada ? version?.latest_release_commit ?? "" : "",
+    release_repository: origemVerificada ? version?.release_repository ?? "" : "",
     off_release: version?.off_release ?? false,
     // Sem isto, a tela lê "sem versão nova anunciada" como "você está em dia" —
     // e uma instalação atrasada cujo host não conseguiu comparar é informada de
@@ -125,7 +173,7 @@ export async function GET(_req: NextRequest): Promise<Response> {
     // "este fork nunca teve release nenhuma". Default `true`: preserva "à
     // frente da publicada" para quem nunca gravou este campo (linha ainda
     // não tocada por nenhum heartbeat, coluna com o default da migration).
-    has_known_release: version?.has_known_release ?? true,
+    has_known_release: origemVerificada ? version?.has_known_release ?? true : false,
     agent_online: !Number.isNaN(lastSeen) && now.getTime() - lastSeen < AGENT_OFFLINE_AFTER_MS,
     notes:
       faixa && faixa.secoes.length > 0

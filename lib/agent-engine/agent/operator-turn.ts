@@ -36,6 +36,7 @@ import { setExecutionAgentOperation } from '@/lib/atendimento/fronteira-server';
  */
 import { z } from 'zod';
 import type pg from 'pg';
+import { catalogEntry } from '@/lib/mcp/tools/catalog';
 
 import { withFields } from '../obs/logger';
 import type { JobRow } from '../queue/queue';
@@ -90,6 +91,13 @@ export const SYSTEM_DO_OPERADOR =
   'combinado"), isso é o que ele DISSE ao cliente, não prova de que algo foi registrado. O passado ' +
   'na frase não é evidência de ação — trate a promessa como pendente até você mesmo confirmar ou ' +
   'registrar (mover o lead, abrir nota, o que fizer sentido com as ferramentas que você tem).\n\n' +
+  'FUNIL: quando a conversa trouxer evidência de mudança na situação do negócio, confira o ' +
+  'lead atual e o significado das etapas do seu funil usando as ferramentas de consulta disponíveis. ' +
+  'Escolha apenas uma etapa existente, compatível com essa evidência, num funil autorizado. ' +
+  'Se a etapa correta for diferente da atual, chame crm_move_lead_stage com os IDs conferidos. ' +
+  'Dizer que vai mover não efetiva a mudança: só o retorno bem-sucedido da ferramenta confirma. ' +
+  'Não invente IDs nem critérios de avanço e não repita uma mudança já feita. ' +
+  'Sem evidência, sem acesso ao estado ou diante de recusa, não mova nem contorne o bloqueio.\n\n' +
   'Use apenas o que a conversa sustenta. Não invente avanço, não registre o que ninguém disse. ' +
   'Se não houver nada a fazer, não faça nada — um turno sem ação é uma resposta válida.';
 
@@ -145,6 +153,7 @@ export function renderBriefingDoOperador(
 export type DesfechoDoOperador =
   | { tipo: 'nada_a_fazer'; porque: 'declaracao_vazia' }
   | { tipo: 'pulado'; porque: 'papel_desligado' | 'sem_agente' | 'handoff_humano' }
+  | { tipo: 'nao_agiu'; porque: 'nenhuma_escrita_confirmada' }
   | { tipo: 'agiu'; ferramentas: number };
 
 /**
@@ -165,6 +174,31 @@ export function nomesDasFerramentasChamadas(
   return saida.result.steps.flatMap((s) =>
     (s.toolCalls ?? []).map((c) => String(c.toolName ?? 'desconhecida')),
   );
+}
+
+/** Uma chamada não prova execução: leituras, recusas e erros não organizam o CRM. */
+export function ferramentasComEscritaConfirmada(
+  saida: {
+    result: { steps: ReadonlyArray<{ toolResults?: ReadonlyArray<{ toolName: string; output: unknown }> }> };
+  } | null,
+): string[] {
+  if (!saida) return [];
+  const indicadores = ['permitido', 'success', 'ok', 'marcado', 'remarcado', 'cancelado',
+    'confirmado', 'registrado', 'proposta_criada', 'encerrado'];
+  return saida.result.steps.flatMap((step) => (step.toolResults ?? []).flatMap((result) => {
+    if (catalogEntry(result.toolName)?.category !== 'write') return [];
+    if (!result.output || typeof result.output !== 'object') return [];
+    const output = result.output as Record<string, unknown>;
+    if ('error' in output || output.isError === true || output.requer_confirmacao_humana === true ||
+        indicadores.some((key) => output[key] === false)) return [];
+    return [result.toolName];
+  }));
+}
+
+export function desfechoDaExecucao(ferramentasExecutadas: readonly string[]): DesfechoDoOperador {
+  return ferramentasExecutadas.length > 0
+    ? { tipo: 'agiu', ferramentas: ferramentasExecutadas.length }
+    : { tipo: 'nao_agiu', porque: 'nenhuma_escrita_confirmada' };
 }
 
 /** Quem ficou responsável pela promessa que o Conversador declarou. */
@@ -471,7 +505,10 @@ export function createOperatorTurnHandler(deps: InboundTurnDeps) {
             messages: [
               {
                 role: 'user',
-                content: renderBriefingDoOperador(
+                content: `Contato deste turno: ${leadId}. Consulte os negócios deste contato; ` +
+                  `o ID do contato não é o ID do lead no funil.\n` +
+                  `Funis autorizados: ${agentConfig.pipelineIds.join(', ') || 'nenhum'}.\n\n` +
+                  renderBriefingDoOperador(
                   declaracao,
                   promessas,
                   renderAgora(
@@ -506,6 +543,7 @@ export function createOperatorTurnHandler(deps: InboundTurnDeps) {
     }
 
     const ferramentasChamadas = nomesDasFerramentasChamadas(saida);
+    const ferramentasExecutadas = ferramentasComEscritaConfirmada(saida);
     await registrarDesfecho(
       pool,
       {
@@ -515,14 +553,15 @@ export function createOperatorTurnHandler(deps: InboundTurnDeps) {
         originJobId: payload.origin_job_id,
         conversationId: payload.conversation_id,
         agentId: payload.agent_id,
-        desfecho: { tipo: 'agiu', ferramentas: ferramentasChamadas.length },
+        desfecho: desfechoDaExecucao(ferramentasExecutadas),
         promessasDeclaradas: promessas.length,
         dono: await apurarComRetorno(pool, tenantId, leadId, promessas.length, {
-          ferramentasChamadas,
-          operadorRodou: true,
-          operadorTemFerramentas: agentConfig.operatorToolIds.length > 0,
+          ferramentasChamadas: ferramentasExecutadas,
+          operadorRodou: saida !== null,
+          operadorTemFerramentas: (mcp?.toolIds.length ?? 0) > 0,
         }),
         ferramentasChamadas,
+        ferramentasExecutadas,
         houveCheckpoint,
       },
       log,
@@ -613,6 +652,7 @@ async function registrarDesfecho(
     promessasDeclaradas: number;
     dono: DonoDaPromessa | null;
     ferramentasChamadas: readonly string[];
+    ferramentasExecutadas?: readonly string[];
     houveCheckpoint: boolean | null;
   },
   log: {
@@ -645,6 +685,7 @@ async function registrarDesfecho(
           desfecho: desfecho.tipo,
           porque: 'porque' in desfecho ? desfecho.porque : null,
           ferramentas_chamadas: entrada.ferramentasChamadas,
+          ferramentas_executadas: entrada.ferramentasExecutadas ?? [],
           promessas_declaradas: entrada.promessasDeclaradas,
           promessa_assumida_por: dono?.assumida === true ? dono.por : null,
           promessa_sem_dono_porque: dono !== null && !dono.assumida ? dono.porque : null,

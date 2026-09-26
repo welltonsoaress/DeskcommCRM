@@ -101,11 +101,12 @@ pelo CI, a partir de um PR de release, e **só de um commit contido na `main`**.
 
 Três razões medidas, todas com consequência no parque instalado:
 
-1. **A tag é o gatilho de atualização de todo mundo.** `hostgator-setup-kit/agent.sh` faz
-   `git fetch --tags` e `hostgator-setup-kit/update.sh` puxa a imagem **por número**. Tag
-   errada não é erro cosmético de changelog: é o seletor do que cada VPS baixa.
-2. **Uma tag `v*` de qualquer branch move o canal `stable`.** O workflow de publicação não
-   testa se o commit está na `main`.
+1. **A tag própria é o gatilho de atualização da instalação.** `hostgator-setup-kit/agent.sh`
+   consulta releases publicadas no repositório Striva e `update.sh` puxa as três imagens pela
+   versão numerada. Tag errada não é erro cosmético de changelog: é o seletor do que cada VPS baixa.
+2. **Só `striva-vX.Y.Z` participa da distribuição Striva Sales.** Tags `v*` herdadas e tags de
+   outros repositórios não selecionam release nem changelog. O workflow valida a origem do commit
+   e mantém a release como rascunho até confirmar as três imagens.
 3. **Mover uma tag já publicada quebra a VPS e mente sobre o motivo.** O `git fetch --tags`
    do `update.sh` recusa a tag movida (`would clobber existing tag`) e sai com erro — que o
    script relata como *"não consegui falar com o GitHub"*. O operador fica no código antigo
@@ -183,15 +184,15 @@ Não está escrita aqui, e isso é deliberado: afirmação de versão envelhece 
 foi assim que `AGENTS.md` passou seis minors dizendo `1.0.0`. Comando não envelhece:
 
 ```bash
-git ls-remote --tags --refs origin 'refs/tags/v*' \
-  | sed 's#.*refs/tags/v##' | awk '!/-/' | sort -V | tail -1
+git ls-remote --tags --refs origin 'refs/tags/striva-v*' \
+  | sed 's#.*refs/tags/striva-v##' | awk '!/-/' | sort -V | tail -1
 ```
 
-O `awk '!/-/'` descarta prerelease e tag de fork — o repositório carrega `v1.1.1-jmpo.1` e
-`jmpo/v1.4.0`, que existem para **não** colidir com a numeração daqui.
+O `awk '!/-/'` descarta prereleases. Tags sem o prefixo `striva-v` — inclusive o histórico
+herdado do projeto anterior — não participam da versão em vigor.
 
 E o `package.json` **não** é a fonte: ele segue em `0.1.0`, de propósito. A fonte é a tag
-`v*` mais a seção do `CHANGELOG.md`.
+`striva-v*` mais a seção própria do `CHANGELOG.md`.
 
 ---
 

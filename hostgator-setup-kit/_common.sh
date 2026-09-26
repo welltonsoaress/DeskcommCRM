@@ -4,6 +4,8 @@ set -euo pipefail
 
 COMPOSE="docker-compose.prod.yml"
 COMPOSE_TRAEFIK="docker-compose.traefik.yml"
+source "$(dirname "${BASH_SOURCE[0]}")/distribution.env"
+DISTRIBUTION_GIT_URL="https://github.com/${DISTRIBUTION_REPOSITORY}.git"
 
 # Proxy reverso desta instalação. Vem do .env (load_env), com default 'caddy' —
 # ou seja, toda instalação que já existe continua exatamente como está.
@@ -305,7 +307,7 @@ refuse() { c_red "✖ $*"; exit "$REFUSED_RC"; }
 is_already_in_head() {
   local ref="$1"
   if [ "$(git rev-parse --is-shallow-repository 2>/dev/null || echo unknown)" = "true" ]; then
-    git fetch --unshallow --tags --quiet origin 2>/dev/null || true
+    completar_historico_da_distribuicao || true
   fi
   case "$(git rev-parse --is-shallow-repository 2>/dev/null || echo unknown)" in
     false) : ;;
@@ -378,9 +380,14 @@ load_env() {
 # Vai pro diretório do projeto (onde está o compose) e carrega o .env.
 enter_project() {
   if [ -f "$COMPOSE" ]; then :;
-  elif [ -f "deskcommcrm/$COMPOSE" ]; then cd deskcommcrm;
+  elif [ -f "striva-sales/$COMPOSE" ]; then cd striva-sales;
   else die "Não achei $COMPOSE. Rode a partir da pasta do projeto."; fi
   [ -f .env ] || die "Falta o .env (rode install.sh primeiro)."
+  PROJECT_DIR="$(pwd)"
+  if ! grep -qE '^COMPOSE_PROJECT_NAME=' .env; then
+    COMPOSE_PROJECT_NAME="$(nome_do_projeto_compose "$PROJECT_DIR")"
+    set_env_var .env COMPOSE_PROJECT_NAME "$COMPOSE_PROJECT_NAME"
+  fi
   load_env .env
   PROJECT_DIR="$(pwd)"
 }
@@ -423,43 +430,88 @@ url_do_schema() {
 psql_run() { docker run --rm -i postgres:17-alpine psql "$(url_do_schema)" -v ON_ERROR_STOP=1 "$@"; }
 
 # ── As três imagens que NÓS publicamos ───────────────────────────────────────
-# O namespace é constante e literal de propósito: ele está gravado no .env de
-# toda instalação viva, e derivá-lo de variável faria o kit antigo (que já está
-# no disco do cliente) e o novo montarem strings diferentes.
-#
-# Esta linha é a ÚNICA fonte do namespace para tudo que executa — os testes do
-# kit a leem em vez de repetir a string. Quem a confere é
-# `tests/unit/namespace-das-imagens.test.ts`, que assere este valor e cobra que
-# `docker-compose.prod.yml`, `.env.hostgator.example` e a matriz de
-# `publish-image.yml` digam o mesmo. Se você é um fork, é lá que está a lista do
-# que trocar junto.
-IMG_NS="ghcr.io/welltonsoaress"
-IMG_APP="${IMG_NS}/deskcommcrm"
-IMG_WORKER="${IMG_NS}/deskcomm-worker"
-IMG_SCHEDULER="${IMG_NS}/deskcomm-scheduler"
+# Distribuição Striva Sales. Repositório e tag vêm do mesmo contrato que nomeia
+# as três imagens; releases só são elegíveis quando o GitHub as publicou.
+IMG_NS="${DISTRIBUTION_REGISTRY}/${DISTRIBUTION_IMAGE_OWNER}"
+IMG_APP="${IMG_NS}/${DISTRIBUTION_APP_IMAGE}"
+IMG_WORKER="${IMG_NS}/${DISTRIBUTION_WORKER_IMAGE}"
+IMG_SCHEDULER="${IMG_NS}/${DISTRIBUTION_SCHEDULER_IMAGE}"
 
-# A última versão publicada (ex.: "1.2.1"), ou vazio se não deu para saber.
-#
-# Consulta o REMOTO, não o clone: o install.sh clona com `--depth 1`, que não
-# traz tag nenhuma, então `git tag -l` local devolveria vazio e a instalação
-# nasceria em `latest` sem ninguém perceber — que é justamente o defeito que
-# esta função existe para consertar.
-#
-# Falha ABERTA de propósito: sem rede, sem git ou sem tag no remoto ela devolve
-# vazio e quem chama cai no canal móvel, como era antes. Travar a instalação de
-# alguém porque não deu para resolver um número de versão seria trocar um
-# problema de previsibilidade por um de disponibilidade.
+github_release_json() {  # github_release_json <?per_page=100|tags/<tag>>
+  local endpoint="$1" url="https://api.github.com/repos/${DISTRIBUTION_REPOSITORY}/releases"
+  command -v curl >/dev/null 2>&1 || return 1
+  case "$endpoint" in
+    \?*) url+="$endpoint" ;;
+    *)   url+="/$endpoint" ;;
+  esac
+  curl -fsS --max-time 12 \
+    -H 'Accept: application/vnd.github+json' \
+    -H 'X-GitHub-Api-Version: 2022-11-28' \
+    "$url" 2>/dev/null
+}
+
+tag_da_release_mais_recente() {
+  local json
+  command -v python3 >/dev/null 2>&1 || return 1
+  json="$(github_release_json "?per_page=100")" || return 1
+  printf '%s' "$json" | python3 -c 'import json,re,sys; rs=json.load(sys.stdin); p=re.compile(re.escape(sys.argv[1])+r"([0-9]+)\.([0-9]+)\.([0-9]+)$"); xs=[]
+for r in rs:
+ t=r.get("tag_name", ""); m=p.fullmatch(t)
+ if m and not r.get("draft") and not r.get("prerelease"): xs.append((tuple(map(int,m.groups())),t))
+print(max(xs)[1] if xs else "")' "$DISTRIBUTION_RELEASE_TAG_PREFIX" 2>/dev/null
+}
+
+# Busca a tag publicada em uma referência privada desta instalação. Não usa
+# refs/tags/* locais: tags herdadas ou uma tag homônima contaminada não podem
+# decidir qual commit fornece as notas ou o código.
+ref_local_da_release() {  # ref_local_da_release <tag>
+  printf 'refs/distribution/releases/%s' "$1"
+}
+
+buscar_commit_da_release() {  # buscar_commit_da_release <tag> → commit via stdout
+  local tag="$1" versao ref
+  case "$tag" in "${DISTRIBUTION_RELEASE_TAG_PREFIX}"*) ;; *) return 1 ;; esac
+  versao="${tag#"$DISTRIBUTION_RELEASE_TAG_PREFIX"}"
+  [[ "$versao" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1
+  ref="$(ref_local_da_release "$tag")"
+  git fetch --no-tags --quiet "$DISTRIBUTION_GIT_URL" "+refs/tags/${tag}:${ref}" 2>/dev/null || return 1
+  git rev-parse --verify --quiet "${ref}^{commit}" 2>/dev/null
+}
+
+# Comparações de ancestralidade só fazem sentido com o histórico do repositório
+# próprio completo. Nunca usa origin: em uma instalação antiga ele pode apontar
+# ao projeto de origem.
+completar_historico_da_distribuicao() {
+  local shallow
+  shallow="$(git rev-parse --is-shallow-repository 2>/dev/null || printf unknown)"
+  if [ "$shallow" = true ]; then
+    git fetch --unshallow --no-tags --quiet "$DISTRIBUTION_GIT_URL" \
+      "refs/heads/${DISTRIBUTION_DEFAULT_BRANCH}" 2>/dev/null || return 1
+  fi
+  [ "$(git rev-parse --is-shallow-repository 2>/dev/null || printf unknown)" = false ]
+}
+
+release_publicada() {  # release_publicada <tag> — valida uma release exata e estável
+  local tag="$1" json versao
+  case "$tag" in "${DISTRIBUTION_RELEASE_TAG_PREFIX}"*) ;; *) return 1 ;; esac
+  versao="${tag#"$DISTRIBUTION_RELEASE_TAG_PREFIX"}"
+  [[ "$versao" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1
+  command -v python3 >/dev/null 2>&1 || return 1
+  json="$(github_release_json "tags/${tag}")" || return 1
+  printf '%s' "$json" | python3 -c 'import json,sys; r=json.load(sys.stdin); t=sys.argv[1]; sys.exit(0 if r.get("tag_name")==t and not r.get("draft") and not r.get("prerelease") else 1)' "$tag" >/dev/null 2>&1
+}
+
+# A última versão publicada (ex.: "1.0.0"); releases sem as três imagens não
+# entram. Uma falha de consulta devolve vazio e nunca é tratada como prova de
+# que uma instalação atrasada está atualizada.
 ultima_versao_publicada() {
-  local url="${1:-https://github.com/welltonsoaress/DeskcommCRM.git}" ref
-  command -v git >/dev/null 2>&1 || return 0
-  # `grep -v -- -` descarta PRERELEASE (v1.11.0-rc1, v1.1.1-jmpo.1 — esta última
-  # existe de verdade neste repo). O `--sort=-v:refname` do git põe o prerelease
-  # ACIMA do release final quando `versionsort.suffix` não está configurado, e
-  # uma instalação nova nasceria num release candidate sem ninguém pedir.
-  ref="$(git ls-remote --tags --refs --sort=-v:refname "$url" 'v*' 2>/dev/null \
-        | awk '{print $2}' | grep -v -- '-' | head -1)" || return 0
-  [ -n "$ref" ] || return 0
-  printf '%s' "${ref#refs/tags/v}"
+  local tag versao
+  tag="$(tag_da_release_mais_recente)" || return 0
+  case "$tag" in "${DISTRIBUTION_RELEASE_TAG_PREFIX}"*) ;; *) return 0 ;; esac
+  versao="${tag#"$DISTRIBUTION_RELEASE_TAG_PREFIX"}"
+  [[ "$versao" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 0
+  trio_publicado "$versao" || return 0
+  printf '%s' "$versao"
 }
 
 # Código HTTP do manifest de uma referência nossa no GHCR, anonimamente.
@@ -505,7 +557,7 @@ ghcr_status() {
 # versões que a doutrina existe para proibir, no caminho de primeira impressão.
 trio_publicado() {
   local tag="$1" i
-  for i in deskcommcrm deskcomm-worker deskcomm-scheduler; do
+  for i in "$DISTRIBUTION_APP_IMAGE" "$DISTRIBUTION_WORKER_IMAGE" "$DISTRIBUTION_SCHEDULER_IMAGE"; do
     [ "$(ghcr_status "$i" "$tag")" = "200" ] || return 1
   done
   return 0
@@ -587,7 +639,9 @@ completar_pin_ausente() {  # completar_pin_ausente [envfile]
   # e o `.env` original chega intacto do outro lado, com as customizações.
   [ -w "$envfile" ] || return 0
 
-  for par in "WORKER_IMAGE:worker:deskcomm-worker" "SCHEDULER_IMAGE:scheduler:deskcomm-scheduler"; do
+  for par in \
+    "WORKER_IMAGE:worker:${DISTRIBUTION_WORKER_IMAGE}" \
+    "SCHEDULER_IMAGE:scheduler:${DISTRIBUTION_SCHEDULER_IMAGE}"; do
     chave="${par%%:*}"; svc="$(printf '%s' "$par" | cut -d: -f2)"; repo="${par##*:}"
 
     # LACUNA apenas. Valor explícito (mesmo em canal móvel) é intocável.
@@ -630,6 +684,19 @@ gravar_imagens() {
   set_env_var "$envfile" WORKER_PULL_POLICY    "$politica"
   set_env_var "$envfile" SCHEDULER_IMAGE       "${IMG_SCHEDULER}:${versao}"
   set_env_var "$envfile" SCHEDULER_PULL_POLICY "$politica"
+}
+
+# A marca padrão persistida no .env de instalações antigas precisa acompanhar
+# a distribuição nova. Só converte o literal padrão anterior; qualquer nome
+# escolhido pelo operador continua intacto. A cor permanece como está porque
+# pode ser uma escolha própria da instalação.
+migrar_nome_padrao_da_marca() {  # migrar_nome_padrao_da_marca [envfile]
+  local envfile="${1:-.env}"
+  [ "${APP_NAME:-}" = "DeskcommCRM" ] || return 0
+  set_env_var_quoted "$envfile" APP_NAME "Striva Sales" || return 0
+  APP_NAME="Striva Sales"
+  export APP_NAME
+  printf 'Striva Sales'
 }
 
 # ── Os segredos da chamada de voz, no .env de quem já tinha instalado ────────
@@ -689,6 +756,19 @@ set_env_var() {
   { grep -vE "^${key}=" "$envfile" || true; } > "$tmp"
   printf '%s=%s\n' "$key" "$value" >> "$tmp"
   chmod 600 "$tmp"   # o .env tem segredos: o tmp nasce com o mesmo rigor
+  mv "$tmp" "$envfile"
+}
+
+# Variante para texto livre que precisa continuar legível como .env, Compose e
+# shell source. Mantém aspas e escapa $, `, barra e aspas como envq do instalador.
+set_env_var_quoted() {
+  local envfile="$1" key="$2" value="$3" tmp escaped
+  [ -f "$envfile" ] || return 0
+  tmp="${envfile}.tmp.$$"
+  escaped="$(printf '%s' "$value" | sed 's/[\\"$`]/\\&/g')"
+  { grep -vE "^${key}=" "$envfile" || true; } > "$tmp"
+  printf '%s="%s"\n' "$key" "$escaped" >> "$tmp"
+  chmod 600 "$tmp"
   mv "$tmp" "$envfile"
 }
 

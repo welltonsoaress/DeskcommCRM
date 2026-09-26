@@ -1,6 +1,6 @@
 ---
 type: threat-model
-project: DeskcommCRM
+project: Striva Sales
 status: draft
 last_updated: 2026-07-29
 generated_by: auditoria documental (Claude Code) — leitura de rotas, guards, proxy.ts e lib/env.ts
@@ -8,11 +8,15 @@ confidence: média-alta (superfície e guards são CONFIRMADO por leitura de có
 audited_against: origin/main @ 789dfa6 (v1.0.0, 2026-07-27)
 ---
 
-# Threat model — DeskcommCRM self-host
+> Esta leitura foi feita antes da distribuição independente Striva Sales e aponta
+> para o commit herdado indicado acima. A troca de marca e repositório não é uma
+> nova auditoria; valide este inventário antes de tratá-lo como estado atual.
+
+# Threat model — Striva Sales self-host
 
 Complementa [`SECURITY.md`](../SECURITY.md), que é política de *reporte*. Este documento é
 o inventário da **superfície de ataque real**: o que fica exposto quando alguém sobe o
-DeskcommCRM numa VPS com IP público.
+Striva Sales numa VPS com IP público.
 
 **Modelo de implantação que muda tudo:** o produto é self-host open-source. O atacante
 tem o **código-fonte completo** — conhece cada rota, cada nome de env var, cada fallback.

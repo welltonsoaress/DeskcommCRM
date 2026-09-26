@@ -25,7 +25,7 @@ describe("o campo de logo anuncia que hidratou", () => {
         logoDaCamada={{ url: null }}
         logoHerdado={null}
         origemDoHerdado="do sistema"
-        nomeEmVigor="DeskcommCRM"
+        nomeEmVigor="Striva Sales"
       />,
     );
     const campo = document.querySelector("[data-campo-de-logo='instalacao']");

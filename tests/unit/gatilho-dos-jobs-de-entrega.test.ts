@@ -107,7 +107,7 @@ const GATILHO_ESPERADO: Record<string, { condicao: string | null; efeito: string
   // versão anterior sem que nada tenha ficado vermelho.
   "publish-image.yml::promover-stable": {
     condicao:
-      "github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref_name, 'v')",
+      "github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref_name, 'striva-v')",
     efeito:
       "As três condições barram um caminho medido cada uma. Sem `push`, um dispatch numa " +
       "release ANTIGA faria `stable` REGREDIR, e todo self-hoster no default do compose " +

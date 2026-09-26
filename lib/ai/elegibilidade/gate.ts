@@ -3,7 +3,7 @@
  *
  * ─── Por que este arquivo existe ────────────────────────────────────────────
  *
- * O DeskcommCRM responde `allow by default`: publicou um agente para a sessão de
+ * O Striva Sales responde `allow by default`: publicou um agente para a sessão de
  * WhatsApp, a IA atende TODO mundo que mandar mensagem. Isso é o certo para o
  * lojista cujo número existe só para vender. É o ERRADO para quem usa o mesmo
  * número para falar com cliente atual, fornecedor e contato pessoal — a IA

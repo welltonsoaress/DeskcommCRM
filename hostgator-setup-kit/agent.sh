@@ -104,51 +104,95 @@ esc() {
 
 # ── 1. Que versão está instalada e qual é a última publicada? ────────────────
 FETCH_OK=1
-git fetch --tags --quiet origin 2>/dev/null || FETCH_OK=0
-
-CURRENT_TAG="$(git describe --tags --exact-match HEAD 2>/dev/null || true)"
-CURRENT_SHA="$(git rev-parse --short HEAD 2>/dev/null || echo '?')"
-LATEST_TAG="$(git tag -l 'v*' --sort=-v:refname | head -1)" || true
-
-# Guardado ANTES de qualquer zeragem abaixo: "vi uma tag" e "não anunciei"
-# são coisas diferentes. Sem isto, um fork sem NENHUMA tag `v*` chega ao app
-# com a mesma combinação de uma instalação que já contém a última publicada
-# (LATEST_TAG zerado, compare_failed=false) — e a tela não tem como saber se
-# está à frente de uma release real ou se nunca houve release nenhuma.
-if [ -n "$LATEST_TAG" ]; then HAS_KNOWN_RELEASE=true; else HAS_KNOWN_RELEASE=false; fi
-
-if [ -n "$CURRENT_TAG" ]; then
-  CURRENT="$CURRENT_TAG"; OFF_RELEASE=false
-else
-  CURRENT="$CURRENT_SHA";  OFF_RELEASE=true
-fi
-
-# Tag que já está CONTIDA no que roda aqui não é atualização — é retrocesso, e
-# o update.sh recusa instalar (sem --force). Anunciá-la mesmo assim acenderia
-# na tela um botão que o agente é obrigado a recusar depois: o mesmo teste de
-# ancestralidade nas duas pontas é o que impede o app de prometer o que o host
-# não vai cumprir. Sem tag anunciada, a tela diz que a instalação está à frente
-# da versão publicada.
-#
-# Na dúvida (repositório raso que não deu pra completar), também NÃO anuncia:
-# oferecer o botão seria oferecer o que o update.sh vai recusar do outro lado.
-#
-# Mas "não anunciei" e "não existe versão nova" são coisas DIFERENTES, e o app
-# não tem como distinguir uma da outra olhando um campo vazio — ele leria o
-# silêncio como boa notícia e diria "você está em dia" a uma instalação
-# atrasada. Por isso o "não sei" viaja explícito no heartbeat.
+LATEST_TAG=""
+LATEST_REF=""
+LATEST_COMMIT=""
+LATEST_VERSION=""
+HAS_KNOWN_RELEASE=false
 COMPARE_FAILED=false
-if [ -n "$LATEST_TAG" ]; then
-  is_already_in_head "$LATEST_TAG" && CONTIDA=0 || CONTIDA=$?
-  [ "$CONTIDA" = 2 ] && COMPARE_FAILED=true
-  [ "$CONTIDA" = 1 ] || LATEST_TAG=""   # 0 = retrocesso, 2 = não sei: nos dois, não anuncia
+CANDIDATE_TAG="$(tag_da_release_mais_recente)" || FETCH_OK=0
+case "$CANDIDATE_TAG" in
+  "${DISTRIBUTION_RELEASE_TAG_PREFIX}"*)
+    HAS_KNOWN_RELEASE=true
+    if LATEST_COMMIT="$(buscar_commit_da_release "$CANDIDATE_TAG")" \
+      && trio_publicado "${CANDIDATE_TAG#"$DISTRIBUTION_RELEASE_TAG_PREFIX"}"; then
+      LATEST_TAG="$CANDIDATE_TAG"
+      LATEST_REF="$(ref_local_da_release "$LATEST_TAG")"
+      LATEST_VERSION="${LATEST_TAG#"$DISTRIBUTION_RELEASE_TAG_PREFIX"}"
+      [ -n "$LATEST_COMMIT" ] || COMPARE_FAILED=true
+    else
+      COMPARE_FAILED=true
+    fi
+    ;;
+esac
+[ "$FETCH_OK" = 1 ] || COMPARE_FAILED=true
+
+# A versão que anunciamos vem do container do app, não do checkout do host:
+# rollback e atualização interrompida podem deixar os dois em revisões distintas.
+RUNTIME_IDENTITY="$(dc exec -T app node -e 'process.stdout.write((process.env.APP_VERSION||"")+"|"+(process.env.APP_REVISION||"")+"|"+(process.env.APP_RELEASE_TAG||"")+"|"+(process.env.APP_DISTRIBUTION_ID||""))' 2>/dev/null)" || RUNTIME_IDENTITY=""
+CURRENT="${RUNTIME_IDENTITY%%|*}"
+RUNTIME_IDENTITY="${RUNTIME_IDENTITY#*|}"
+CURRENT_SHA="${RUNTIME_IDENTITY%%|*}"
+RUNTIME_IDENTITY="${RUNTIME_IDENTITY#*|}"
+CURRENT_RELEASE_TAG="${RUNTIME_IDENTITY%%|*}"
+RUNTIME_IDENTITY="${RUNTIME_IDENTITY#*|}"
+CURRENT_DISTRIBUTION="${RUNTIME_IDENTITY%%|*}"
+if [ -z "$CURRENT" ]; then
+  RUNNING_CONTAINER="$(dc ps -q app 2>/dev/null | head -1)" || RUNNING_CONTAINER=""
+  RUNNING_REF=""
+  if [ -n "$RUNNING_CONTAINER" ]; then
+    RUNNING_REF="$(docker inspect --format '{{.Config.Image}}' "$RUNNING_CONTAINER" 2>/dev/null)" || RUNNING_REF=""
+    IMAGE_ID="$(docker inspect --format '{{.Image}}' "$RUNNING_CONTAINER" 2>/dev/null)" || IMAGE_ID=""
+    [ -z "$CURRENT_SHA" ] && CURRENT_SHA="$(docker image inspect "$IMAGE_ID" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' 2>/dev/null)" || true
+  fi
+  IMAGE_TAG="$(tag_da_imagem "$RUNNING_REF")"
+  case "$IMAGE_TAG" in
+    [0-9]*.[0-9]*.[0-9]*) CURRENT="$IMAGE_TAG" ;;
+    *) CURRENT="desconhecida" ;;
+  esac
 fi
-# Sem nenhuma tag conhecida E sem ter conseguido buscar: também não dá para
-# afirmar que não há versão nova — nem sabemos se existe alguma publicada.
-[ -z "$LATEST_TAG" ] && [ "$FETCH_OK" = 0 ] && COMPARE_FAILED=true
+[ -n "$CURRENT_SHA" ] || CURRENT_SHA="desconhecida"
+[ -n "$CURRENT_DISTRIBUTION" ] || CURRENT_DISTRIBUTION="legacy"
+
+if [ "$CURRENT_DISTRIBUTION" = "$DISTRIBUTION_ID" ] && [ "$CURRENT_RELEASE_TAG" = "${DISTRIBUTION_RELEASE_TAG_PREFIX}${CURRENT}" ]; then
+  OFF_RELEASE=false
+else
+  OFF_RELEASE=true
+fi
+
+# Se o container já tem identidade de commit, comparamos esse commit com a
+# release-alvo. Sem revisão em imagens antigas, uma versão diferente é a
+# migração da linha legada para Striva; o alvo foi selecionado pelo endpoint de
+# releases próprio e pelas três imagens públicas.
+if [ -n "$LATEST_TAG" ]; then
+  if [ "$CURRENT_DISTRIBUTION" != "$DISTRIBUTION_ID" ]; then
+    : # a distribuição legada migra para a release Striva, mesmo com versão igual
+  elif [ "$CURRENT_RELEASE_TAG" = "$LATEST_TAG" ]; then
+    LATEST_VERSION=""
+  elif [[ "$CURRENT_SHA" =~ ^[0-9a-fA-F]{7,40}$ ]] \
+    && completar_historico_da_distribuicao \
+    && git cat-file -e "${CURRENT_SHA}^{commit}" 2>/dev/null; then
+    if git merge-base --is-ancestor "$CURRENT_SHA" "$LATEST_REF" 2>/dev/null; then
+      : # a release é posterior ao commit realmente executado
+    elif git merge-base --is-ancestor "$LATEST_REF" "$CURRENT_SHA" 2>/dev/null; then
+      LATEST_VERSION="" # o container está à frente da última release
+    else
+      LATEST_VERSION=""
+      COMPARE_FAILED=true
+    fi
+  elif [[ "$CURRENT_SHA" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
+    LATEST_VERSION=""
+    COMPARE_FAILED=true
+  elif [[ "$CURRENT" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    : # versão legada sem revisão verificável: oferece somente a migração própria
+  else
+    LATEST_VERSION=""
+    COMPARE_FAILED=true
+  fi
+fi
 
 CHANGELOG=""
-if [ -n "$LATEST_TAG" ] && [ "$LATEST_TAG" != "$CURRENT" ]; then
+if [ -n "$LATEST_TAG" ] && [ -n "$LATEST_VERSION" ]; then
   # Corta em 30000 bytes CRUS, não 60000: o teto do Zod (CHANGELOG_MAX_BYTES,
   # lib/system/changelog.ts) é 64000 e vale sobre a string JÁ ESCAPADA — cada
   # aspas/barra/tab/quebra de linha dobra de tamanho no esc() acima. Cortar
@@ -167,7 +211,7 @@ if [ -n "$LATEST_TAG" ] && [ "$LATEST_TAG" != "$CURRENT" ]; then
   # casa, cai no arquivo inteiro cortado, e o app declara que não alcançou.
   # MANTENHA numa linha física só: tests/unit/changelog-cabe-na-tela-da-vps.test.ts
   # lê o teto daqui por regex de linha única e EXPLODE se ela for quebrada.
-  CHANGELOG="$(git show "${LATEST_TAG}:CHANGELOG.md" 2>/dev/null | awk -v cur="## [${CURRENT#v}]" 'index($0, cur) == 1 { print; exit } { print }' | head -c 30000 || true)"
+  CHANGELOG="$(git show "${LATEST_REF}:CHANGELOG.md" 2>/dev/null | awk -v cur="## [${CURRENT}]" 'index($0, cur) == 1 { print; exit } { print }' | head -c 30000 || true)"
   # `head -c` corta em byte fixo, e o CHANGELOG tem emoji/acento multi-byte
   # (UTF-8) — um corte no meio de um caractere quebraria o JSON de um jeito
   # difícil de rastrear. `iconv -c` descarta o byte incompleto do final sem
@@ -201,7 +245,7 @@ PIN_CORRIGIDO="$(completar_pin_ausente .env)" || PIN_CORRIGIDO=""
 # do operador e não se toca. Aqui só se avisa.
 PIN_FALTANDO="$(pin_incompleto .env)" || PIN_FALTANDO=""
 
-BODY="{\"kind\":\"heartbeat\",\"current_version\":\"${CURRENT}\",\"current_sha\":\"${CURRENT_SHA}\",\"off_release\":${OFF_RELEASE},\"latest_version\":\"${LATEST_TAG}\",\"compare_failed\":${COMPARE_FAILED},\"has_known_release\":${HAS_KNOWN_RELEASE},\"changelog\":\"$(esc "$CHANGELOG")\"}" || true
+BODY="{\"kind\":\"heartbeat\",\"current_version\":\"${CURRENT}\",\"current_sha\":\"${CURRENT_SHA}\",\"off_release\":${OFF_RELEASE},\"latest_version\":\"${LATEST_VERSION}\",\"compare_failed\":${COMPARE_FAILED},\"has_known_release\":${HAS_KNOWN_RELEASE},\"changelog\":\"$(esc "$CHANGELOG")\",\"current_distribution_id\":\"${CURRENT_DISTRIBUTION}\",\"current_release_tag\":\"${CURRENT_RELEASE_TAG}\",\"current_revision\":\"${CURRENT_SHA}\",\"latest_release_tag\":\"${LATEST_TAG}\",\"latest_release_commit\":\"${LATEST_COMMIT:-}\",\"release_repository\":\"${DISTRIBUTION_REPOSITORY}\"}" || true
 
 # Só no log do host, de propósito. Mandar isto no heartbeat seria inútil: o
 # schema da rota é `z.object` sem `.strict()`, então o Zod DESCARTA chave
@@ -229,7 +273,20 @@ report() { post "{\"kind\":\"run_progress\",\"run_id\":\"${RUN_ID}\",\"step\":\"
 # permissão — coisas normais numa VPS rodando isso a cada 5 minutos, pra
 # sempre; sem o "|| true" isso já derrubava o agente ANTES de sequer chamar o
 # update.sh (achado só rodando de propósito com o comando falhando).
-PREV_IMAGE="$(dc images -q app 2>/dev/null | head -1)" || true
+rollback_image_alias() {  # rollback_image_alias <serviço> → referência local estável
+  local service="$1" container image_id short ref
+  container="$(dc ps -q "$service" 2>/dev/null | head -1)" || container=""
+  [ -n "$container" ] || return 1
+  image_id="$(docker inspect --format '{{.Image}}' "$container" 2>/dev/null)" || return 1
+  [ -n "$image_id" ] || return 1
+  short="${image_id#sha256:}"
+  short="${short:0:16}"
+  ref="localhost/${DISTRIBUTION_ID}-rollback-${service}:${short}"
+  docker image tag "$image_id" "$ref" >/dev/null 2>&1 || return 1
+  printf '%s' "$ref"
+}
+
+PREV_IMAGE="$(rollback_image_alias app)" || PREV_IMAGE=""
 # O worker e o scheduler passaram a ser imagens publicadas e pinadas na mesma
 # versão do app (antes eram `build:`-only e nenhum update os alcançava). Isso
 # tem um custo aqui: um rollback que voltasse SÓ o app deixaria o parque com
@@ -243,12 +300,8 @@ PREV_IMAGE="$(dc images -q app 2>/dev/null | head -1)" || true
 # inline que este compose não tem mais. Pinar aquele ID deixaria o contêiner
 # rodando o CMD do alpine puro — ele sai na hora, e `restart: unless-stopped` o
 # recoloca em crashloop. Os 16 crons parariam, em silêncio, gravado no .env.
-if grep -qE '^WORKER_IMAGE=' .env 2>/dev/null; then
-  PREV_WORKER_IMAGE="$(dc images -q worker 2>/dev/null | head -1)" || true
-fi
-if grep -qE '^SCHEDULER_IMAGE=' .env 2>/dev/null; then
-  PREV_SCHEDULER_IMAGE="$(dc images -q scheduler 2>/dev/null | head -1)" || true
-fi
+PREV_WORKER_IMAGE="$(rollback_image_alias worker)" || PREV_WORKER_IMAGE=""
+PREV_SCHEDULER_IMAGE="$(rollback_image_alias scheduler)" || PREV_SCHEDULER_IMAGE=""
 PREV_WORKER_IMAGE="${PREV_WORKER_IMAGE:-}"
 PREV_SCHEDULER_IMAGE="${PREV_SCHEDULER_IMAGE:-}"
 if [ -z "$PREV_IMAGE" ]; then
@@ -303,25 +356,43 @@ elif [ $RC -ne 0 ]; then
     [ -n "$PREV_WORKER_IMAGE" ] && ROLLBACK_ARGS+=(worker)
     [ -n "$PREV_SCHEDULER_IMAGE" ] && ROLLBACK_ARGS+=(scheduler)
 
-    if APP_IMAGE="$PREV_IMAGE" APP_PULL_POLICY=missing \
-       WORKER_IMAGE="${PREV_WORKER_IMAGE:-}" WORKER_PULL_POLICY=missing \
-       SCHEDULER_IMAGE="${PREV_SCHEDULER_IMAGE:-}" SCHEDULER_PULL_POLICY=missing \
-         dc up -d "${ROLLBACK_ARGS[@]}" >>"$LOG" 2>&1; then
-      STATUS="failed_rolled_back"
-      # Persiste a volta: o update.sh já gravou as imagens NOVAS (quebradas) no
-      # .env antes do pull. Sem reescrever aqui, o próximo `up -d` — o do
-      # cliente, semanas depois — traria o app quebrado de volta e desfaria o
-      # rollback em silêncio. Os IDs guardados são LOCAIS (não tags do
-      # registro), então a política de pull precisa ir junto.
+    if APP_IMAGE="$PREV_IMAGE" APP_PULL_POLICY=never \
+       WORKER_IMAGE="${PREV_WORKER_IMAGE:-}" WORKER_PULL_POLICY=never \
+       SCHEDULER_IMAGE="${PREV_SCHEDULER_IMAGE:-}" SCHEDULER_PULL_POLICY=never \
+         dc up -d --no-build "${ROLLBACK_ARGS[@]}" >>"$LOG" 2>&1; then
+      # Persiste aliases locais para que o próximo `up -d` não tente baixar uma
+      # referência de rollback que só existe neste host.
       set_env_var .env APP_IMAGE "$PREV_IMAGE"
-      set_env_var .env APP_PULL_POLICY missing
+      set_env_var .env APP_PULL_POLICY never
       if [ -n "$PREV_WORKER_IMAGE" ]; then
         set_env_var .env WORKER_IMAGE "$PREV_WORKER_IMAGE"
-        set_env_var .env WORKER_PULL_POLICY missing
+        set_env_var .env WORKER_PULL_POLICY never
       fi
       if [ -n "$PREV_SCHEDULER_IMAGE" ]; then
         set_env_var .env SCHEDULER_IMAGE "$PREV_SCHEDULER_IMAGE"
-        set_env_var .env SCHEDULER_PULL_POLICY missing
+        set_env_var .env SCHEDULER_PULL_POLICY never
+      fi
+
+      ROLLBACK_OK=1
+      wait_app_healthy 20 3 >/dev/null || ROLLBACK_OK=0
+      for service in "${ROLLBACK_ARGS[@]:1}"; do
+        SERVICE_HEALTHY=""
+        for _ in $(seq 1 20); do
+          container="$(dc ps -q "$service" 2>/dev/null | head -1)" || container=""
+          state="$(docker inspect --format '{{.State.Status}}' "$container" 2>/dev/null)" || state=""
+          health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container" 2>/dev/null)" || health="unknown"
+          if [ "$state" = "running" ] && [ "$health" = "healthy" ]; then
+            SERVICE_HEALTHY=1
+            break
+          fi
+          sleep 3
+        done
+        [ -n "$SERVICE_HEALTHY" ] || ROLLBACK_OK=0
+      done
+      if [ "$ROLLBACK_OK" = 1 ]; then
+        STATUS="failed_rolled_back"
+      else
+        log_err "rollback das imagens foi aplicado, mas a saúde do app/serviços não foi confirmada"
       fi
     fi
   fi

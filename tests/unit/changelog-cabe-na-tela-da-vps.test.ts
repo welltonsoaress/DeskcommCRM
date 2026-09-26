@@ -77,7 +77,7 @@ const AGENT_SH = path.join(RAIZ, "hostgator-setup-kit", "agent.sh");
 /** O teto real, lido de onde ele é aplicado. */
 function tetoDoAgente(): number {
   const sh = fs.readFileSync(AGENT_SH, "utf8");
-  const m = /git show\s+"?\$\{?LATEST_TAG\}?"?:CHANGELOG\.md[^\n]*head -c (\d+)/.exec(sh);
+  const m = /git show\s+"?\$\{?LATEST_REF\}?:CHANGELOG\.md[^\n]*head -c (\d+)/.exec(sh);
   if (!m) {
     throw new Error(
       "não achei o corte do CHANGELOG em agent.sh — se o mecanismo mudou, este teste precisa " +
@@ -92,18 +92,18 @@ function tetoDoAgente(): number {
  *
  * Lido do próprio `agent.sh` pelo mesmo motivo que o teto é: um `## [` digitado
  * aqui viraria segunda fonte da verdade, e a cópia é sempre a que envelhece.
- * O que se extrai é o valor de `-v cur=`, com `${CURRENT#v}` no lugar da versão.
+ * O que se extrai é o valor de `-v cur=`, com `${CURRENT}` no lugar da versão.
  */
 function rotuloDeParadaDoAgente(): (versao: string) => string {
   const sh = fs.readFileSync(AGENT_SH, "utf8");
   const m = /awk -v cur="([^"]*)"/.exec(sh);
-  if (!m?.[1]?.includes("${CURRENT#v}")) {
+  if (!m?.[1]?.includes("${CURRENT}")) {
     throw new Error(
       "não achei o `-v cur=` do awk em agent.sh — se o corte deixou de parar no cabeçalho da " +
         "versão instalada, este teste precisa acompanhar em vez de ser apagado.",
     );
   }
-  return (versao: string) => m[1]!.replace("${CURRENT#v}", versao);
+  return (versao: string) => m[1]!.replace("${CURRENT}", versao);
 }
 
 interface Secao {

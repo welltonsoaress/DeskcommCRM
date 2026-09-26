@@ -38,6 +38,22 @@ export function isRunStale(dispatchedAt: string, now: Date): boolean {
   return now.getTime() - started > RUN_STALE_AFTER_MS;
 }
 
+/** Decisão única usada pela leitura do rodapé e pelo POST que inicia o update. */
+export function updateDisponivel(
+  atual: string | null | undefined,
+  alvo: string | null | undefined,
+  distribuicaoAtual?: string | null,
+  distribuicaoAlvo?: string | null,
+  comparacaoFalhou = false,
+): boolean {
+  if (!alvo || comparacaoFalhou) return false;
+  // Distribuição legada sem identidade ainda é desconhecida, não equivalente
+  // à Striva. Isto permite a primeira migração mesmo quando a versão numérica
+  // coincide com uma tag herdada de outro projeto.
+  if (distribuicaoAlvo && distribuicaoAlvo !== (distribuicaoAtual ?? "")) return true;
+  return alvo !== (atual ?? "");
+}
+
 /**
  * O rollback deste run já foi superado por uma troca de app que não passou por
  * aqui?
@@ -66,10 +82,9 @@ export function isRunStale(dispatchedAt: string, now: Date): boolean {
  * outra coisa. Então o run só é superado quando o host reporta uma versão que
  * **o run não descreve** — nem a que tentou instalar, nem a que restaurou.
  *
- * O caso que fica de fora é reinstalar À MÃO exatamente a versão que falhou e
- * dessa vez funcionar: ali o rodapé segue nomeando a anterior. Falha
- * conservadora e de propósito — ela empurra para atualizar, enquanto o erro
- * oposto seria anunciar como no ar justamente a versão que quebrou.
+ * Uma instalação manual posterior da própria tag Striva que falhou é prova
+ * suficiente de que o alvo agora está em execução. Agentes antigos não têm
+ * essa identidade e continuam no comportamento conservador.
  *
  * Falso sempre que falta uma das datas — ausência de prova não é prova de
  * deploy, e o run continua sendo a informação mais específica sobre o que subiu.
@@ -79,6 +94,7 @@ export function rollbackFoiSuperado(
   runFinishedAt: string | null | undefined,
   versaoReportadaPeloHost?: string | null | undefined,
   run?: { from_version?: string | null; to_version?: string | null } | null,
+  runtime?: { distributionId?: string | null; releaseTag?: string | null } | null,
 ): boolean {
   if (!versionUpdatedAt || !runFinishedAt) return false;
   const gravado = Date.parse(versionUpdatedAt);
@@ -90,5 +106,13 @@ export function rollbackFoiSuperado(
   // conservador, e é o comportamento de antes desta função existir.
   if (!versaoReportadaPeloHost) return false;
   const descritasPeloRun = [run?.to_version, run?.from_version].filter(Boolean);
+  if (
+    versaoReportadaPeloHost === run?.to_version &&
+    runtime?.distributionId === DISTRIBUTION_ID &&
+    runtime.releaseTag === distributionTag(run.to_version)
+  ) {
+    return true;
+  }
   return !descritasPeloRun.includes(versaoReportadaPeloHost);
 }
+import { DISTRIBUTION_ID, distributionTag } from "./distribution";

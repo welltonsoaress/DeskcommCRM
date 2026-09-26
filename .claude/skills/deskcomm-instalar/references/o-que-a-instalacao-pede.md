@@ -16,7 +16,7 @@ a do provedor escolhido. No modo `--yes`, sem escolha, o padrão é Anthropic.
 |---|---|---|
 | `DOMAIN` | o endereço do CRM, ex. `crm.suaempresa.com.br` — só o domínio, sem `https://` nem barra | tem ponto, sem esquema, sem caminho |
 | `ACME_EMAIL` | e-mail que recebe avisos do certificado (SSL) | formato de e-mail |
-| `APP_IMAGE` | a versão que vai rodar — **deixe o padrão** (última versão publicada com as três imagens) | cascata: versão → `stable` → build local → `latest` |
+| `APP_IMAGE` | a versão que vai rodar — **deixe o padrão** (última release própria com as três imagens) | seleciona a tag numerada `striva-vX.Y.Z`; valida app, worker e scheduler antes de iniciar |
 | `NEXT_PUBLIC_SUPABASE_URL` | Project URL do Supabase (Settings › API) | chamada real a `/auth/v1/health` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon key (Settings › API) | lê o papel dentro da chave e testa |
 | `SUPABASE_SERVICE_ROLE_KEY` | service_role key — **secreta** | idem, contra a admin API |
@@ -34,7 +34,7 @@ projeto** e preenche as quatro sozinho (`hostgator-setup-kit/supabase-provision.
 |---|---|
 | `SUPABASE_ACCESS_TOKEN` (token pessoal, **não fica salvo**) | projeto criado à mão (4 cópias); os e-mails de acesso saem no modelo em inglês do Supabase e o **Site URL fica `localhost:3000`** — "esqueci minha senha", confirmação de cadastro e aceite de convite chegam com link quebrado até alguém configurar Authentication › URL Configuration (`Site URL = https://DOMÍNIO`, `Redirect = https://DOMÍNIO/auth/confirm`). O instalador imprime essa pendência no fim; `hostgator-setup-kit/marca-emails.sh` resolve depois, com o token |
 | `OPENAI_API_KEY` extra (quando a IA não é OpenAI) | o agente **não ouve áudio** nem indexa/consulta a base de conhecimento até alguém cadastrar a chave da OpenAI em IA › Credenciais (não precisa mexer no `.env`) |
-| `APP_NAME` (padrão `DeskcommCRM`) | é a **semente** do nome; depois muda em Configurações › Marca |
+| `APP_NAME` (padrão `Striva Sales`) | é a **semente** do nome; depois muda em Configurações › Marca |
 | `APP_LOCALE` (1 = Português, 2 = Español) | grava o idioma da organização |
 | `APP_ACCENT_HEX` (ex. `#7a5cd6`) | a cor do produto (verde) na tela e nos e-mails |
 | `SUPPORT_EMAIL` | a tela de "conta suspensa" fica sem endereço de contato |

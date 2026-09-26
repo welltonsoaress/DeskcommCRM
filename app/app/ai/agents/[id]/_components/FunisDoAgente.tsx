@@ -75,6 +75,9 @@ export function FunisDoAgente({ funis, value, onChange, cobertura, disabled = fa
             "Marque os funis que este assistente cuida. Ele conversa com qualquer cliente, mas só move, edita ou encerra negócio dos funis marcados aqui.",
           )}
         </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {t("Novas reservas também são bloqueadas quando o contato tem um negócio aberto em um funil não marcado. Revise os funis deste assistente ou faça o agendamento manualmente.")}
+        </p>
       </div>
 
       {funis.length === 0 ? (

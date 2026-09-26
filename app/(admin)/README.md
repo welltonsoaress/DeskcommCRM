@@ -1,6 +1,6 @@
 # Admin routes (super-admin de plataforma)
 
-> Placeholder. Rotas vivem em `admin.deskcomm.com` (subdomínio dedicado).
+> Placeholder. As rotas vivem no subdomínio administrativo configurado para a instalação.
 
 Conteúdo a popular conforme Spec 01 — Plataforma Base:
 

@@ -22,9 +22,9 @@ Não há como acelerar honestamente: o "primeiro release" é uma data fixa no pa
 
 **A vaga compensa a espera.** A tag `Customer Relationship Management (CRM)` tem hoje **dois** projetos — `django-crm` e `espocrm` —, e **nenhum** com WhatsApp (conferido em 28/07/2026). Não é uma prateleira lotada onde viraríamos mais um item.
 
-**Como funciona:** a submissão **não** vai no README. Vai como um arquivo YAML em [`awesome-selfhosted-data`](https://github.com/awesome-selfhosted/awesome-selfhosted-data), em `software/deskcommcrm.yml`, um item por PR, nome de arquivo em kebab-case.
+**Como funciona:** a submissão **não** vai no README. Vai como um arquivo YAML em [`awesome-selfhosted-data`](https://github.com/awesome-selfhosted/awesome-selfhosted-data), em `software/striva-sales.yml`, um item por PR, nome de arquivo em kebab-case.
 
-**Entrada pronta:** `docs/growth/awesome-selfhosted-deskcommcrm.yml`. É só copiar o conteúdo abaixo dos comentários. Os nomes de tag e plataforma foram conferidos em 28/07/2026 contra o campo `name:` de cada arquivo do repositório deles — **não** contra o nome do arquivo, que é diferente (`customer-relationship-management-crm.yml` declara `Customer Relationship Management (CRM)`). Referenciar pelo nome do arquivo é a rejeição mais comum.
+**Entrada pronta:** `docs/growth/awesome-selfhosted-striva-sales.yml`. É só copiar o conteúdo abaixo dos comentários. Os nomes de tag e plataforma foram conferidos em 28/07/2026 contra o campo `name:` de cada arquivo do repositório deles — **não** contra o nome do arquivo, que é diferente (`customer-relationship-management-crm.yml` declara `Customer Relationship Management (CRM)`). Referenciar pelo nome do arquivo é a rejeição mais comum.
 
 Dois campos que o arquivo **não** leva: `stargazers_count` e `commit_history` são injetados por um bot deles depois do merge.
 
@@ -57,7 +57,7 @@ Critérios: ser open source · ser alternativa a um software proprietário · at
 | Intercom | intercom.com |
 | Octadesk | octadesk.com |
 
-Nome da alternativa: `DeskcommCRM` · Repositório: `https://github.com/melgarafael/DeskcommCRM`
+Nome da alternativa: `Striva Sales` · Repositório: `https://github.com/welltonsoaress/striva-sales`
 
 ---
 
@@ -65,7 +65,7 @@ Nome da alternativa: `DeskcommCRM` · Repositório: `https://github.com/melgaraf
 
 Exige conta no site. Sem custo, sem trava de idade.
 
-- **Nome:** DeskcommCRM
+- **Nome:** Striva Sales
 - **Categoria:** CRM / Customer Support
 - **Licença:** Open Source (MIT)
 - **Plataformas:** Self-Hosted, Web, Docker

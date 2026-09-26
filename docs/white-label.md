@@ -2,7 +2,7 @@
 
 # Instalar para clientes (agências e revendedores)
 
-Guia para quem instala o DeskcommCRM **para outras empresas** — agência, consultoria, revendedor — e cobra por isso.
+Guia para quem instala o Striva Sales **para outras empresas** — agência, consultoria, revendedor — e cobra por isso.
 
 A licença é MIT: você pode modificar, hospedar para terceiros, revender e cobrar o que quiser. Não há royalty, não há cláusula proibindo hospedagem comercial e não existe versão paga que trave funcionalidade do seu cliente.
 
@@ -31,12 +31,12 @@ Entre os dois, **o arquivo subido pela tela vence a URL do `.env`** — quem sub
 ```bash
 APP_NAME=Vendas Turbo CRM
 APP_LOGO_URL=https://cdn.suaempresa.com.br/logo.svg
-APP_ACCENT_HEX=#7a5cd6
+APP_ACCENT_HEX=#7C3AED
 ```
 
 O `install.sh` pergunta **duas** delas e as grava: o `APP_NAME` (Enter mantém o padrão) e o `APP_ACCENT_HEX` (Enter usa a cor do sistema). `APP_LOGO_URL` ele não pergunta — o caminho normal do logo é subir o arquivo pela tela, e esta chave existe para quem prefere hospedar por conta própria.
 
-> A cor é pedida com validador: só `#` + 6 dígitos passa. É mais estreito do que a tela aceita, e de propósito — os **e-mails de acesso** (confirmação de conta e recuperação de senha) leem essa chave do `.env`, e eles só reconhecem essa forma. Um `#abc` ou um `7a5cd6` pintaria a interface com a sua cor e deixaria o verde do produto no primeiro e-mail que o seu cliente abre.
+> A cor é pedida com validador: só `#` + 6 dígitos passa. É mais estreito do que a tela aceita, e de propósito — os **e-mails de acesso** (confirmação de conta e recuperação de senha) leem essa chave do `.env`, e eles só reconhecem essa forma. Um `#abc` ou um `7a5cd6` pintaria a interface com a sua cor e deixaria o violeta do produto no primeiro e-mail que o seu cliente abre.
 
 > ⚠️ **Trocar a cor pela tela depois NÃO reescreve os e-mails de acesso.** O texto deles vive dentro do Supabase (GoTrue), não no CRM, e quem o empurra para lá é o `marca-emails.sh` — que lê o **`.env`**, não o banco. Para os e-mails acompanharem uma cor trocada em `/admin/marca`: ajuste também o `APP_ACCENT_HEX` no `.env` e rode `bash hostgator-setup-kit/marca-emails.sh`. É por isso que a entrevista do instalador importa: ela é o único momento em que as duas pontas nascem iguais sem ninguém precisar saber disso.
 

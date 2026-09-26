@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { canTransition, isRunStale, rollbackFoiSuperado, RUN_STALE_AFTER_MS } from "./update-run";
+import {
+  canTransition,
+  isRunStale,
+  rollbackFoiSuperado,
+  RUN_STALE_AFTER_MS,
+  updateDisponivel,
+} from "./update-run";
+import { DISTRIBUTION_ID, distributionTag } from "./distribution";
 
 describe("canTransition", () => {
   it("aceita o desfecho reportado pelo agente", () => {
@@ -39,6 +46,16 @@ describe("isRunStale", () => {
   });
 });
 
+describe("updateDisponivel", () => {
+  it("compartilha a decisão de disponibilidade e reconhece a migração de distribuição", () => {
+    expect(updateDisponivel("1.0.0", "1.0.0", DISTRIBUTION_ID, DISTRIBUTION_ID)).toBe(false);
+    expect(updateDisponivel("1.0.0", "1.0.0", "legacy", DISTRIBUTION_ID)).toBe(true);
+    expect(updateDisponivel("1.0.0", "1.1.0", DISTRIBUTION_ID, DISTRIBUTION_ID)).toBe(true);
+    expect(updateDisponivel("1.0.0", "", "legacy", DISTRIBUTION_ID)).toBe(false);
+    expect(updateDisponivel("1.0.0", "1.1.0", "legacy", DISTRIBUTION_ID, true)).toBe(false);
+  });
+});
+
 describe("rollbackFoiSuperado", () => {
   const fimDoRun = "2026-08-28T01:51:52.000Z";
   const RUN = { from_version: "1.0.0", to_version: "1.1.0" };
@@ -59,6 +76,25 @@ describe("rollbackFoiSuperado", () => {
 
   it("host reportando a versão RESTAURADA também não supera: é o run concordando consigo", () => {
     expect(rollbackFoiSuperado("2026-08-28T01:52:30.000Z", fimDoRun, "1.0.0", RUN)).toBe(false);
+  });
+
+  it("instalação manual posterior da mesma release com runtime comprovado supera a falha antiga", () => {
+    expect(
+      rollbackFoiSuperado("2026-08-28T02:10:00.000Z", fimDoRun, "1.1.0", RUN, {
+        distributionId: DISTRIBUTION_ID,
+        releaseTag: distributionTag("1.1.0"),
+      }),
+    ).toBe(true);
+  });
+
+  it("uma batida antiga sem identidade runtime não apaga o histórico da falha", () => {
+    expect(rollbackFoiSuperado("2026-08-28T02:10:00.000Z", fimDoRun, "1.1.0", RUN)).toBe(false);
+    expect(
+      rollbackFoiSuperado("2026-08-28T02:10:00.000Z", fimDoRun, "1.1.0", RUN, {
+        distributionId: "legacy",
+        releaseTag: "v1.1.0",
+      }),
+    ).toBe(false);
   });
 
   it("agente gravou antes do run: o rollback ainda é a notícia mais nova", () => {

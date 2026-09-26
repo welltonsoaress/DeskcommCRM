@@ -9,6 +9,9 @@
 #
 set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
+GIT_REAL_BIN="$(command -v git)"
+PYTHON3_BIN="${PYTHON3_BIN:-$(command -v python3 || true)}"
+export GIT_REAL_BIN PYTHON3_BIN
 
 # O _common.sh vem antes porque é dele que saem `nome_do_projeto_compose`,
 # `veredito_rede_do_proxy` e `garantir_rede_do_proxy` — o install.sh e o update.sh
@@ -346,7 +349,8 @@ TMP2="$(mktemp -d)"
 (
   MARCA="$TMP2/executou"
   # Exatamente o que o provisionamento emite quando a região traz uma aspa simples.
-  VENENO="postgresql://postgres.ref:senha@aws-0-sa-east-1'\$(touch $MARCA)'.pooler.supabase.com:5432/postgres"
+  ESQUEMA_DB="postgres"
+  VENENO="${ESQUEMA_DB}ql://postgres.ref:senha@aws-0-sa-east-1'\$(touch $MARCA)'.pooler.supabase.com:5432/postgres"
   PATH_ANTES="$PATH"
   unset NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY SUPABASE_DB_URL
 
@@ -368,51 +372,6 @@ TMP2="$(mktemp -d)"
   eq "db_url normal chega íntegra"     "${SUPABASE_DB_URL:-}"          "postgresql://u:p@h:5432/postgres"
 ) || fail=1
 rm -rf "$TMP2"
-
-echo "integração: o install.sh não INTERPRETA a saída do provisionamento"
-# O bloco de cima guarda a FUNÇÃO; este guarda o PONTO DE CHAMADA — trocar
-# `sb_carrega_credenciais "$_sb_out"` de volta por `eval "$_sb_out"` passava
-# despercebido, porque a função continuava correta e ninguém mais a chamava.
-#
-# Guarda o COMPORTAMENTO, não o texto: uma asserção do tipo "não existe a palavra
-# eval" pegaria só a reincidência literal, e `. <(printf %s "$_sb_out")` executa
-# igual. Aqui o install.sh roda de verdade (docker é stub, nada de rede) com um
-# provisionamento que devolve uma aspa simples no valor; se qualquer mecanismo
-# interpretar aquilo, o marcador aparece.
-TMP3="$(mktemp -d)"
-(
-  MARCA="$TMP3/executou"
-  mkdir -p "$TMP3/bin" "$TMP3/proj"
-  cp install.sh _common.sh "$TMP3/"
-  : > "$TMP3/proj/docker-compose.prod.yml"
-  printf '#!/usr/bin/env bash\nexit 0\n' > "$TMP3/bin/docker"; chmod +x "$TMP3/bin/docker"
-  cat > "$TMP3/supabase-provision.sh" <<'PROV'
-#!/usr/bin/env bash
-# O que o provisionamento emite quando SUPABASE_REGION (que vem do ambiente)
-# traz uma aspa simples: ela fecha o literal do printf e o resto vira código.
-VENENO="postgresql://u:p@aws-0-x'\$(touch $MARCA)'.pooler.supabase.com:5432/postgres"
-printf "NEXT_PUBLIC_SUPABASE_URL='https://ref.supabase.co'\n"
-printf "NEXT_PUBLIC_SUPABASE_ANON_KEY='a'\n"
-printf "SUPABASE_SERVICE_ROLE_KEY='s'\n"
-printf "SUPABASE_DB_URL='%s'\n" "$VENENO"
-PROV
-
-  saida="$(cd "$TMP3/proj" && env PATH="$TMP3/bin:$PATH" MARCA="$MARCA" \
-    SUPABASE_ACCESS_TOKEN=fake NEXT_PUBLIC_SUPABASE_URL= \
-    bash "$TMP3/install.sh" --yes 2>&1 || true)"
-
-  # Sem esta checagem o teste passaria por VACUIDADE: se o install.sh morresse
-  # antes do bloco (stub quebrado, refactor movendo o trecho), nada executaria o
-  # veneno e o silêncio seria lido como aprovação.
-  if ! printf '%s' "$saida" | grep -q "credenciais entraram sozinhas"; then
-    printf '  ✗ o install.sh não chegou ao bloco do Supabase — teste inconclusivo, não verde\n'; exit 1
-  fi
-  if [ -e "$MARCA" ]; then
-    printf '  ✗ o install.sh INTERPRETOU a saída do provisionamento (eval/source no ponto de chamada?)\n'; exit 1
-  fi
-  printf '  ✓ ponto de chamada não interpreta a saída\n'
-) || fail=1
-rm -rf "$TMP3"
 
 echo "sincronia: o install.sh grava as chaves que o .env.hostgator.example promete"
 # O install.sh monta o .env a partir de uma LISTA FECHADA de `envq` e fecha com
@@ -1025,7 +984,7 @@ fi
 #     do produto, que é o mesmo piso de lib/branding/saida.ts.
 SUPABASE_ACCESS_TOKEN= APP_NAME='Marca Torta' APP_ACCENT_HEX='verde-limão' \
   bash ./marca-emails.sh --env /dev/null --render-em "$ME_TMP/torto" >/dev/null 2>&1
-if grep -q 'background: #506d48; background: #506d48' "$ME_TMP/torto/confirmation.html" 2>/dev/null; then
+if grep -q 'background: #7c3aed; background: #7c3aed' "$ME_TMP/torto/confirmation.html" 2>/dev/null; then
   printf '  ✓ APP_ACCENT_HEX inválido cai no accent do produto\n'
 else
   printf '  ✗ APP_ACCENT_HEX inválido virou CSS inválido: %s\n' \
@@ -1039,9 +998,9 @@ rm -rf "$ME_TMP"
 #     forma que o `case` de `marca-emails.sh:125` reconhece. O `ehHexValido` do app
 #     (`lib/branding/rampa.ts:49`) aceita mais quatro (`#abc`, `abc`, `aabbcc`),
 #     e deixá-las passar aqui produziria o pior desfecho: a cor do revendedor na
-#     tela e o verde do produto no primeiro e-mail — split-brain que ninguém
+#     tela e o roxo do produto no primeiro e-mail — split-brain que ninguém
 #     percebe, porque cada metade parece certa sozinha.
-ok "cor em hex de 6 dígitos"                pass   v_hex "#7a5cd6"
+ok "cor em hex de 6 dígitos"                pass   v_hex "#7c3aed"
 ok "cor vazia (Enter) — o campo é opcional" pass   v_hex ""
 ok "nome de cor não é hex"                  reject v_hex "verde-limão" "6 dígitos"
 ok "hex de 3 dígitos: o e-mail não o lê"    reject v_hex "#7a5"        "6 dígitos"
@@ -1389,28 +1348,69 @@ montar_vps() {
   # ele no sandbox, aquele `bash` falhava, o `|| true` engolia, e todo cenário
   # media uma instalação em que o passo dos e-mails de acesso simplesmente não
   # aconteceu — o elo mais fácil de quebrar sem ninguém ver.
-  cp install.sh update.sh backup.sh _common.sh marca-emails.sh "$raiz/"
-  : > "$VPS_PROJ/docker-compose.prod.yml"
-  cat > "$raiz/bin/docker"
-  # Só o v_supabase_url exige resposta online (000 reprova); os outros toleram.
-  #
-  # O dublê fala DOIS protocolos porque o install.sh passou a sondar o GHCR
-  # antes de pinar as imagens (`ghcr_status`/`trio_publicado` no _common.sh): o
-  # endpoint de token devolve JSON, o de manifest devolve o código HTTP. Um
-  # dublê que respondesse `200` para tudo faria o `sed` do token sair vazio, a
-  # sonda devolver `000`, e a suíte passaria a exercitar o ramo de fallback
-  # achando que exercita o normal — verde medindo outra coisa.
-  #
-  # `DUBLE_GHCR` permite ao teste escolher o cenário: vazio/`200` = as três
-  # imagens publicadas; `403` = pacote privado; `404` = não existe.
+cp install.sh update.sh backup.sh _common.sh marca-emails.sh "$raiz/"
+cp distribution.env "$raiz/"
+: "${DISTRIBUTION_TEST_VERSION:=1.0.0}"
+DISTRIBUTION_TEST_REMOTE="$raiz/striva-release.git"
+git init --quiet --bare "$DISTRIBUTION_TEST_REMOTE"
+git -C "$raiz" init --quiet "striva-release-work"
+git -C "$raiz/striva-release-work" config user.email test@example.invalid
+git -C "$raiz/striva-release-work" config user.name test
+printf 'release do fixture\n' > "$raiz/striva-release-work/README.md"
+mkdir -p "$raiz/striva-release-work/supabase"
+: > "$raiz/striva-release-work/supabase/baseline.sql"
+: > "$raiz/striva-release-work/docker-compose.prod.yml"
+: > "$raiz/striva-release-work/docker-compose.traefik.yml"
+git -C "$raiz/striva-release-work" add -A
+git -C "$raiz/striva-release-work" commit --quiet -m 'fixture Striva release'
+git -C "$raiz/striva-release-work" tag "striva-v${DISTRIBUTION_TEST_VERSION}"
+git -C "$raiz/striva-release-work" push --quiet "$DISTRIBUTION_TEST_REMOTE" HEAD:refs/heads/main "refs/tags/striva-v${DISTRIBUTION_TEST_VERSION}"
+export DISTRIBUTION_TEST_REMOTE DISTRIBUTION_TEST_VERSION
+: > "$VPS_PROJ/docker-compose.prod.yml"
+cat > "$raiz/bin/docker"
+  # A release e o registry têm dois protocolos distintos. A API retorna JSON;
+  # o GHCR retorna um token e um status HTTP por manifesto. Mantemos tudo local
+  # para provar tanto publicação completa quanto falha sem acesso externo.
   cat > "$raiz/bin/curl" <<'STUBCURL'
 #!/usr/bin/env bash
-case "$*" in
-  *ghcr.io/token*) printf '{"token":"dublê"}' ;;
-  *ghcr.io/v2/*)   printf '%s' "${DUBLE_GHCR:-200}" ;;
-  *)               printf 200 ;;
+url="${!#}"
+tag="striva-v${DISTRIBUTION_TEST_VERSION:-1.0.0}"
+case "$url" in
+  *api.github.com/repos/welltonsoaress/striva-sales/releases\?per_page=100*)
+    if [ "${DISTRIBUTION_TEST_NO_RELEASE:-0}" = 1 ]; then printf '[]'
+    elif [ -n "${DISTRIBUTION_TEST_RELEASES_JSON:-}" ]; then printf '%s' "$DISTRIBUTION_TEST_RELEASES_JSON"
+    else printf '[{"tag_name":"%s","draft":false,"prerelease":false},{"tag_name":"v99.0.0","draft":false,"prerelease":false}]' "$tag"; fi
+    ;;
+  *api.github.com/repos/welltonsoaress/striva-sales/releases/tags/*)
+    if [ "${url##*/}" = "$tag" ] && [ "${DISTRIBUTION_TEST_NO_RELEASE:-0}" != 1 ]; then
+      printf '{"tag_name":"%s","draft":false,"prerelease":false}' "$tag"
+    else
+      printf '{"tag_name":"not-a-release","draft":true,"prerelease":false}'
+    fi
+    ;;
+  *ghcr.io/token\?*) printf '{"token":"dublê"}' ;;
+  *ghcr.io/v2/*/manifests/*)
+    case "$url" in *"/${DUBLE_MISSING_IMAGE:-__none__}/manifests/"*) printf '404' ;;
+      *) printf '%s' "${DUBLE_GHCR:-200}" ;; esac
+    ;;
+  *) printf '200' ;;
 esac
 STUBCURL
+  cat > "$raiz/bin/git" <<'STUBGIT'
+#!/usr/bin/env bash
+args=()
+for arg in "$@"; do
+  [ "$arg" = "https://github.com/welltonsoaress/striva-sales.git" ] && arg="$DISTRIBUTION_TEST_REMOTE"
+  args+=("$arg")
+done
+exec "$GIT_REAL_BIN" "${args[@]}"
+STUBGIT
+  if [ -n "${PYTHON3_BIN:-}" ]; then
+    cat > "$raiz/bin/python3" <<'STUBPYTHON'
+#!/usr/bin/env bash
+exec "$PYTHON3_BIN" "$@"
+STUBPYTHON
+  fi
   # O install.sh e o update.sh vão até o fim, e no fim eles AGENDAM CRON. Sem
   # dublê a suíte escreveria no crontab de quem a roda — apontando para um
   # diretório temporário que ela mesma apaga em seguida. Teste que suja a máquina
@@ -1446,7 +1446,8 @@ case "${1:-}" in
 esac
 exit 0
 STUB
-  chmod +x "$raiz/bin/docker" "$raiz/bin/curl" "$raiz/bin/crontab"
+  chmod +x "$raiz/bin/docker" "$raiz/bin/curl" "$raiz/bin/git" "$raiz/bin/crontab"
+  [ -x "$raiz/bin/python3" ] && chmod +x "$raiz/bin/python3"
 }
 
 # rodar <script> <flags> [linha extra do .env] [respostas do modo interativo]
@@ -1475,6 +1476,44 @@ rodar() {
       bash "$VPS_RAIZ/$script" $flags 2>&1 || true) | sed -E 's/\x1b\[[0-9;]*m//g'
   fi
 }
+
+echo "integração: o install.sh não INTERPRETA a saída do provisionamento"
+# Guarda o comportamento do ponto de chamada, exercitando o install.sh completo
+# com release/imagens locais simuladas. O provisionamento devolve aspas e shell
+# em um valor; somente o parser seguro pode recebê-lo sem executar o marcador.
+TMP3="$(mktemp -d)"
+(
+  MARCA="$TMP3/executou"
+  montar_vps "$TMP3" "proj" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$DOCKER_LOG"
+exit 0
+STUB
+cat > "$TMP3/supabase-provision.sh" <<'PROV'
+#!/usr/bin/env bash
+ESQUEMA_DB="postgres"
+VENENO="${ESQUEMA_DB}ql://u:p@aws-0-x'\$(touch $MARCA)'.pooler.supabase.com:5432/postgres"
+printf "NEXT_PUBLIC_SUPABASE_URL='https://ref.supabase.co'\n"
+printf "NEXT_PUBLIC_SUPABASE_ANON_KEY='a'\n"
+printf "SUPABASE_SERVICE_ROLE_KEY='s'\n"
+printf "SUPABASE_DB_URL='%s'\n" "$VENENO"
+PROV
+  sed -E '/^(NEXT_PUBLIC_SUPABASE_URL|NEXT_PUBLIC_SUPABASE_ANON_KEY|SUPABASE_SERVICE_ROLE_KEY|SUPABASE_DB_URL)=/d' \
+    <<< "$BASE_ENV" > "$VPS_PROJ/.env"
+  : > "$VPS_LOG"
+  saida="$(cd "$VPS_PROJ" && env PATH="$VPS_RAIZ/bin:$PATH" DOCKER_LOG="$VPS_LOG" \
+    CRONTAB_SANDBOX="$CRONTAB_SANDBOX" MARCA="$MARCA" SUPABASE_ACCESS_TOKEN=fake \
+    bash "$VPS_RAIZ/install.sh" --yes 2>&1 || true)"
+  if ! printf '%s' "$saida" | grep -q "credenciais entraram sozinhas"; then
+    printf '  ✗ install.sh não chegou ao provisionamento — teste inconclusivo, não verde\n'; exit 1
+  fi
+  if [ -e "$MARCA" ]; then
+    printf '  ✗ install.sh interpretou a saída do provisionamento (eval/source no ponto de chamada?)\n'; exit 1
+  fi
+  printf '  ✓ ponto de chamada não interpreta a saída, mesmo com a release própria\n'
+) || fail=1
+rm -rf "$TMP3"
+
 # Vacuidade, usada em toda rodada do install.sh: sem isto, um install.sh que
 # morresse ANTES da detecção (dublê incompleto, refactor movendo o bloco)
 # passaria — a ausência do painel de bloqueio seria lida como aprovação. O
@@ -1594,7 +1633,7 @@ STUB
   # sobrevive aos dois caminhos, com rede e sem.
   img_app="$(valor_no_env "$VPS_PROJ/.env" APP_IMAGE)"
   tag_app="${img_app##*:}"
-  for par in "WORKER_IMAGE:deskcomm-worker" "SCHEDULER_IMAGE:deskcomm-scheduler"; do
+  for par in "WORKER_IMAGE:striva-worker" "SCHEDULER_IMAGE:striva-scheduler"; do
     chave="${par%%:*}"; repo="${par##*:}"
     if [ "$(valor_no_env "$VPS_PROJ/.env" "$chave")" != "${IMG_NS}/${repo}:${tag_app}" ]; then
       printf '  ✗ %s não acompanha a versão do app (%s): %s\n' "$chave" "$tag_app" \
@@ -1702,44 +1741,37 @@ STUB
 ) || fail=1
 rm -rf "$TMP3B"
 
-echo "packaging: a instalação resolve a última versão publicada"
-# O outro lado da regra de ouro: com um remoto que TEM tags, o install precisa
-# escolher a maior — e não a primeira que aparecer. `git ls-remote` devolve por
-# ordem alfabética de ref, onde "v1.10.0" vem ANTES de "v1.9.0"; sem o
-# `--sort=-v:refname` a instalação nasceria numa versão velha achando que é a
-# nova. É o tipo de erro que só aparece na décima release.
+echo "packaging: somente releases estáveis próprias e com três imagens"
+# O seletor não lê tags locais genéricas. A API simulada contém releases fora
+# de ordem, uma versão preliminar, uma draft e uma tag genérica contaminante.
+# Só a maior release Striva estável é considerada, depois de confirmar o trio.
 (
-  # `ultima_versao_publicada` já está no escopo: o preâmbulo desta suíte faz
-  # `. ./_common.sh`. Sourcear de novo dentro de um subshell que muda de
-  # diretório é como a primeira versão disto quebrou.
   repo_falso="$(mktemp -d)"
-  git init --quiet --bare "$repo_falso/origem.git"
-  trabalho="$(mktemp -d)"
-  git clone --quiet "$repo_falso/origem.git" "$trabalho/w" 2>/dev/null
-  (
-    cd "$trabalho/w" || exit 1
-    git config user.email t@t; git config user.name t
-    echo x > a; git add -A; git commit --quiet -m init
-    for t in v1.0.0 v1.9.0 v1.10.0 v1.2.0; do git tag "$t"; done
-    git push --quiet origin HEAD --tags 2>/dev/null
-  )
-
-  achou="$(ultima_versao_publicada "$repo_falso/origem.git")"
+  DISTRIBUTION_TEST_VERSION=1.10.0
+  DISTRIBUTION_TEST_RELEASES_JSON='[{"tag_name":"striva-v1.0.0","draft":false,"prerelease":false},{"tag_name":"striva-v1.9.0","draft":false,"prerelease":false},{"tag_name":"striva-v1.10.0","draft":false,"prerelease":false},{"tag_name":"striva-v1.2.0","draft":false,"prerelease":false},{"tag_name":"striva-v9.0.0","draft":false,"prerelease":true},{"tag_name":"striva-v99.0.0","draft":true,"prerelease":false},{"tag_name":"v100.0.0","draft":false,"prerelease":false}]'
+  export DISTRIBUTION_TEST_VERSION DISTRIBUTION_TEST_RELEASES_JSON
+  montar_vps "$repo_falso" "selector" <<'STUB'
+#!/usr/bin/env bash
+exit 0
+STUB
+  PATH="$VPS_RAIZ/bin:$PATH"
+  achou="$(ultima_versao_publicada)"
   if [ "$achou" != "1.10.0" ]; then
     printf '  ✗ escolheu a versão errada: esperado 1.10.0, veio "%s"\n' "$achou"
-    printf '     (ordem alfabética põe v1.9.0 depois de v1.10.0 — precisa de --sort=-v:refname)\n'
-    rm -rf "$repo_falso" "$trabalho"; exit 1
+    printf '     (deve ignorar releases draft, preliminares, tags genéricas e ordenar por semver)\n'
+    rm -rf "$repo_falso"; exit 1
   fi
-  printf '  ✓ entre v1.0.0/v1.2.0/v1.9.0/v1.10.0, escolhe 1.10.0 (ordem de VERSÃO, não alfabética)\n'
+  printf '  ✓ escolhe 1.10.0 e ignora tags preliminares, draft e genéricas\n'
 
-  vazio="$(mktemp -d)"; git init --quiet --bare "$vazio/sem-tags.git"
-  semtag="$(ultima_versao_publicada "$vazio/sem-tags.git")"
+  DISTRIBUTION_TEST_NO_RELEASE=1
+  export DISTRIBUTION_TEST_NO_RELEASE
+  semtag="$(ultima_versao_publicada)"
   if [ -n "$semtag" ]; then
-    printf '  ✗ remoto sem tag devia devolver vazio, veio "%s"\n' "$semtag"
-    rm -rf "$repo_falso" "$trabalho" "$vazio"; exit 1
+    printf '  ✗ sem releases próprias/publicadas devia devolver vazio, veio "%s"\n' "$semtag"
+    rm -rf "$repo_falso"; exit 1
   fi
-  printf '  ✓ remoto sem tag nenhuma devolve vazio (o install cai no canal móvel e avisa)\n'
-  rm -rf "$repo_falso" "$trabalho" "$vazio"
+  printf '  ✓ sem release elegível não seleciona versão\n'
+  rm -rf "$repo_falso"
 ) || fail=1
 
 echo "packaging: a instalação GRAVA a versão resolvida (não só sabe qual é)"
@@ -1748,24 +1780,9 @@ echo "packaging: a instalação GRAVA a versão resolvida (não só sabe qual é
 # para voltar a gravar `:latest` fixo e TODA a suíte passou verde, porque nada
 # ligava a função ao arquivo que o cliente recebe.
 #
-# Offline de propósito: REPO_URL aponta para um repositório local com tags
-# conhecidas, então a asserção é exata (1.10.0) e não depende de o CI alcançar o
-# GitHub. Um teste que precisa de rede para provar pinagem falha por motivo
-# errado no dia em que a rede oscila.
 TMP_PIN="$(mktemp -d)"
 (
-  origem="$TMP_PIN/origem.git"
-  git init --quiet --bare "$origem"
-  (
-    cd "$TMP_PIN" || exit 1
-    git clone --quiet "$origem" w 2>/dev/null
-    cd w || exit 1
-    git config user.email t@t; git config user.name t
-    echo x > a; git add -A; git commit --quiet -m init
-    for t in v1.0.0 v1.9.0 v1.10.0; do git tag "$t"; done
-    git push --quiet origin HEAD --tags 2>/dev/null
-  )
-
+  DISTRIBUTION_TEST_VERSION=1.10.0
   montar_vps "$TMP_PIN/vps" "crmpin" <<'STUB'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$DOCKER_LOG"
@@ -1774,11 +1791,9 @@ case "$1" in
 esac
 exit 0
 STUB
-  export REPO_URL="$origem"
   rodar install.sh --yes >/dev/null
-  unset REPO_URL
 
-  for par in "APP_IMAGE:deskcommcrm" "WORKER_IMAGE:deskcomm-worker" "SCHEDULER_IMAGE:deskcomm-scheduler"; do
+  for par in "APP_IMAGE:striva-sales" "WORKER_IMAGE:striva-worker" "SCHEDULER_IMAGE:striva-scheduler"; do
     chave="${par%%:*}"; repo="${par##*:}"
     if [ "$(valor_no_env "$VPS_PROJ/.env" "$chave")" != "${IMG_NS}/${repo}:1.10.0" ]; then
       printf '  ✗ %s não foi pinado na versão resolvida (1.10.0): %s\n' "$chave" \
@@ -1790,24 +1805,15 @@ STUB
   if [ "$(valor_no_env "$VPS_PROJ/.env" APP_PULL_POLICY)" = "always" ]; then
     printf '  ✗ tag imutável com pull_policy=always: o CRM só sobe se o GHCR estiver de pé\n'; exit 1
   fi
-  printf '  ✓ com v1.0.0/v1.9.0/v1.10.0 no remoto, o .env nasce pinado em 1.10.0 (as três imagens)\n'
+  printf '  ✓ o .env nasce pinado na release publicada própria 1.10.0 (as três imagens)\n'
 ) || fail=1
 rm -rf "$TMP_PIN"
+DISTRIBUTION_TEST_VERSION=1.0.0
+export DISTRIBUTION_TEST_VERSION
 
-echo "packaging: a tag do git não basta — as imagens têm de existir"
-# A tag nasce minutos antes das imagens, e as do worker/scheduler só passaram a
-# existir depois das releases que já estão publicadas: `deskcomm-worker:1.2.1`
-# nunca vai existir, porque a v1.2.1 é passado. Sem sondar o registry, o .env do
-# cliente receberia referências impossíveis e o kit as construiria aqui EM
-# SILÊNCIO, do topo da main — app de uma release, worker de outro código.
-#
-# 403 é o caso que trava na estreia de uma imagem nova: pacote recém-criado no
-# GHCR nasce privado, e repositório público não muda isso.
+echo "packaging: imagem ausente ou privada interrompe sem build ou mudança no banco"
 TMP_PRIV="$(mktemp -d)"
 (
-  # Sem depender de tags no GitHub de ninguém: reproduz o primeiro deploy
-  # deste fork, quando origin ainda não publicou uma versão numerada.
-  git init --quiet --bare "$TMP_PRIV/sem-tags.git"
   montar_vps "$TMP_PRIV/vps" "crmpriv" <<'STUB'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$DOCKER_LOG"
@@ -1817,22 +1823,18 @@ esac
 exit 0
 STUB
   export DUBLE_GHCR=403          # pacote existe mas está PRIVADO
-  export REPO_URL="$TMP_PRIV/sem-tags.git"
   saida="$(rodar install.sh --yes)"
-  unset DUBLE_GHCR REPO_URL
+  unset DUBLE_GHCR
 
-  if ! printf '%s' "$saida" | grep -q "construídas neste servidor"; then
-    printf '  ✗ com as imagens inalcançáveis, o instalador não avisou que ia construir aqui\n'
-    printf '     silêncio aqui é o defeito: o dono não descobre que duas peças saíram do fonte local.\n'
+  if ! printf '%s' "$saida" | grep -q "três imagens públicas"; then
+    printf '  ✗ com as imagens privadas, o instalador não interrompeu a instalação com o motivo certo\n'
     exit 1
   fi
-  printf '  ✓ imagens inalcançáveis (403): avisa que vai construir no servidor, em vez de calar\n'
-
-  # E ainda assim a instalação COMPLETA — construir é lento, não é impedimento.
-  if ! grep -qE "^APP_IMAGE=" "$VPS_PROJ/.env"; then
-    printf '  ✗ a instalação não chegou a escrever o .env\n'; exit 1
+  if grep -qE 'compose .* up|postgres:17-alpine psql' "$VPS_LOG"; then
+    printf '  ✗ instalador alterou serviço ou banco apesar de a release não ter imagens acessíveis\n'
+    exit 1
   fi
-  printf '  ✓ e mesmo assim conclui a instalação (constrói é lento, não é impedimento)\n'
+  printf '  ✓ imagens privadas (403): interrompe antes de tocar nos serviços ou no banco\n'
 ) || fail=1
 rm -rf "$TMP_PRIV"
 
@@ -2082,7 +2084,7 @@ STUB
 
   # 1. Recusa. O sintoma do defeito era instalar em silêncio; qualquer coisa que
   #    não seja parar aqui é o defeito de volta.
-  if ! printf '%s' "$saida" | grep -q 'Já existe um DeskcommCRM NO AR'; then
+  if ! printf '%s' "$saida" | grep -q 'Já existe outra instalação no ar nesta VPS'; then
     printf '  ✗ NÃO recusou a instalação por cima da que está no ar\n'
     printf '     últimas linhas: %s\n' "$(printf '%s' "$saida" | tail -3 | tr '\n' ' ')"; exit 1
   fi
@@ -2123,7 +2125,7 @@ STUB2
   chmod +x "$VPS_RAIZ/bin/docker"
   saida="$(rodar install.sh --yes)"
   chegou_na_deteccao || exit 1
-  if printf '%s' "$saida" | grep -q 'Já existe um DeskcommCRM NO AR'; then
+  if printf '%s' "$saida" | grep -q 'Já existe outra instalação no ar nesta VPS'; then
     printf '  ✗ bloqueou a RE-EXECUÇÃO legítima (mesma árvore) — o kit manda rodar de novo\n'; exit 1
   fi
   printf '  ✓ e a re-execução de dentro da própria árvore continua passando\n'
@@ -2458,7 +2460,7 @@ NEXT_PUBLIC_APP_URL='https://crm.exemplo.com.br'")"
 
   # Vacuidade: se o update.sh parou antes (git, tag, dublê incompleto), a
   # ausência do erro do compose não prova nada.
-  n_up="$(grep -n -E '^compose .* up -d$' "$VPS_LOG" | head -1 | cut -d: -f1)"
+  n_up="$(grep -n -E '^compose .* up -d( --no-build)?$' "$VPS_LOG" | head -1 | cut -d: -f1)"
   if [ -z "$n_up" ]; then
     printf '  ✗ o update.sh não chegou ao "up -d" — teste inconclusivo, não verde\n'
     printf '     última linha da saída: %s\n' "$(printf '%s' "$saida" | tail -1)"; exit 1
@@ -2683,11 +2685,11 @@ fi
 TMP_SITEURL="$(mktemp -d)"
 (
   KIT_AQUI="$PWD"
-  cp "$KIT_AQUI/marca-emails.sh" "$KIT_AQUI/_common.sh" "$TMP_SITEURL/" || exit 1
+  cp "$KIT_AQUI/marca-emails.sh" "$KIT_AQUI/_common.sh" "$KIT_AQUI/distribution.env" "$TMP_SITEURL/" || exit 1
   mkdir -p "$TMP_SITEURL/../supabase/templates" 2>/dev/null
   # Os modelos moram em ../supabase/templates relativo ao script.
   mkdir -p "$TMP_SITEURL/kit" "$TMP_SITEURL/supabase/templates"
-  cp "$KIT_AQUI/marca-emails.sh" "$KIT_AQUI/_common.sh" "$TMP_SITEURL/kit/"
+  cp "$KIT_AQUI/marca-emails.sh" "$KIT_AQUI/_common.sh" "$KIT_AQUI/distribution.env" "$TMP_SITEURL/kit/"
   cp "$KIT_AQUI/../supabase/templates/confirmation.html" \
      "$KIT_AQUI/../supabase/templates/recovery.html" "$TMP_SITEURL/supabase/templates/" || exit 1
 
@@ -2776,7 +2778,7 @@ TMP_RASCUNHO="$(mktemp -d)"
 (
   KIT_AQUI="$PWD"
   cd "$TMP_RASCUNHO" || exit 1
-  cp "$KIT_AQUI/install.sh" "$KIT_AQUI/_common.sh" . || exit 1
+  cp "$KIT_AQUI/install.sh" "$KIT_AQUI/_common.sh" "$KIT_AQUI/distribution.env" . || exit 1
   INSTALL_SH_LIB=1 . ./install.sh >/dev/null 2>&1
   set +e   # o install.sh liga `set -e`; aqui as sondas precisam poder sair != 0
 

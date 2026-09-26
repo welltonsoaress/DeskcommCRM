@@ -41,8 +41,14 @@ describe("interface por vínculo é apresentação", () => {
     const settings = interfaceSettingsSchema.parse(granular);
     expect(sidebarGroups(false, "admin", settings).map((g) => g.group.id)).toEqual([
       "crm",
+      "ia",
       "organizacao",
     ]);
+    expect(
+      sidebarGroups(false, "admin", settings)
+        .find((g) => g.group.id === "ia")
+        ?.items.map((d) => d.href),
+    ).toContain("/app/ai/cases");
     expect(
       hubSections("crm", false, "admin", settings)
         .flatMap((s) => s.items)

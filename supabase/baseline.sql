@@ -98,7 +98,6 @@ begin
   return v_event_id;
 end $$;
 
-
 ALTER FUNCTION "public"."emit_event"("p_event_type" "text", "p_entity_kind" "text", "p_entity_id" "uuid", "p_payload" "jsonb", "p_metadata" "jsonb", "p_organization_id" "uuid") OWNER TO "postgres";
 
 
@@ -23894,81 +23893,6 @@ create trigger trg_org_voice_calls_set_updated_at
 
 notify pgrst, 'reload schema';
 
--- ---- VARREDURA anon: função nova nasce exposta em quem ATUALIZA (migration 0116) ----
---
--- ⚠️ ESTE BLOCO É, DE PROPÓSITO, O ÚLTIMO DO ARQUIVO. Apêndice novo entra ANTES
-
--- dele — quem o empurrar para o meio desarma a cura para tudo que vier depois.
--- Vigiado por `tests/unit/varredura-anon-e-o-ultimo-bloco.test.ts`.
---
--- A 0108 revogou anon numa LISTA de 8 funções, medida num banco instalado do
--- ZERO. Quem ATUALIZA tem outro estado: o `ALTER DEFAULT PRIVILEGES ... GRANT
--- ALL ON FUNCTIONS TO anon` do corpo deste arquivo grava uma entrada em
--- `pg_default_acl` que fica no catálogo PARA SEMPRE, e a partir daí toda função
--- criada em `public` nasce com EXECUTE para anon — inclusive as deste apêndice.
---
--- Medido numa VPS real (2026-08-07), comparando com o que um install fresco
--- produz: 6 definer expostas a anon e 5 a authenticated, entre elas
--- `fn_decrypt_oauth` — alcançável pela anon key, que vai para o browser.
---
--- Lista conserta o estoque e reabre no próximo `create function`. Esta varredura
--- é auto-curativa e roda DEPOIS de tudo que cria função, então cura no mesmo run
--- em que o defeito nasceria. Desfazer o ALTER DEFAULT PRIVILEGES não serve: ele
--- vem do `pg_dump` do Supabase e é reescrito a cada re-aplicação.
---
--- As duas origens de EXECUTE (a mesma lição da 0108): grant DIRETO a anon, que
--- `revoke from public` não remove; e grant a PUBLIC, do qual anon HERDA, que
--- `revoke from anon` não remove. O privilégio EFETIVO de authenticated e
--- service_role é medido ANTES e devolvido depois — tira anon sem tirar leitura.
-do $$
-declare
-  f record;
-  tinha_auth boolean;
-  tinha_service boolean;
-begin
-  if to_regrole('anon') is null then
-    return;
-  end if;
-
-  for f in
-    select p.oid, p.oid::regprocedure as assinatura
-      from pg_proc p
-      join pg_namespace n on n.oid = p.pronamespace
-     where n.nspname = 'public'
-       and p.prosecdef
-  loop
-    tinha_auth := to_regrole('authenticated') is not null
-                  and has_function_privilege('authenticated', f.oid, 'EXECUTE');
-    tinha_service := to_regrole('service_role') is not null
-                     and has_function_privilege('service_role', f.oid, 'EXECUTE');
-
-    execute format('revoke execute on function %s from public, anon', f.assinatura);
-
-    if tinha_auth then
-      execute format('grant execute on function %s to authenticated', f.assinatura);
-    end if;
-    if tinha_service then
-      execute format('grant execute on function %s to service_role', f.assinatura);
-    end if;
-  end loop;
-end $$;
-
--- regra 2 (authenticated): as 5 que o update abriu e o install não abre. Aqui não
--- cabe varredura — `authenticated` PRECISA de EXECUTE nos helpers de RLS e em
--- `retrieve_top_k_chunks` (num install fresco ele tem). É julgamento por função,
--- e o alvo de cada linha é o valor que um install fresco produz, medido.
-revoke execute on function public.fn_audit_log_row() from authenticated;
-revoke execute on function public.fn_decrypt_oauth(bytea) from authenticated;
-revoke execute on function public.fn_encrypt_oauth(text) from authenticated;
-revoke execute on function public.fn_lgpd_cascade_redact_contact(uuid, uuid, uuid) from authenticated;
-revoke execute on function public.fn_update_budget_consumption() from authenticated;
-
-grant execute on function public.fn_audit_log_row() to service_role;
-grant execute on function public.fn_decrypt_oauth(bytea) to service_role;
-grant execute on function public.fn_encrypt_oauth(text) to service_role;
-grant execute on function public.fn_lgpd_cascade_redact_contact(uuid, uuid, uuid) to service_role;
-grant execute on function public.fn_update_budget_consumption() to service_role;
-
 -- 0237 assistente de gestao WhatsApp (apendice idempotente)
 
 -- 0237: assistente de gestão, desligado por ausência de vínculo.
@@ -24181,3 +24105,186 @@ drop trigger if exists trg_management_actions_updated_at on public.management_ac
 create trigger trg_management_actions_updated_at before update on public.management_actions
   for each row execute function public.fn_set_updated_at();
 notify pgrst, 'reload schema';
+
+-- 0239: Realtime de casos aguardando ação humana (estado operacional).
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication where pubname = 'supabase_realtime'
+  ) then
+    create publication supabase_realtime;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+     where pubname = 'supabase_realtime'
+       and schemaname = 'public'
+       and tablename = 'agent_cases'
+  ) then
+    execute 'alter publication supabase_realtime add table public.agent_cases';
+  end if;
+end $$;
+
+-- 0240: identidade verificada da distribuição e release em execução.
+alter table public.system_version
+  add column if not exists current_distribution_id text not null default '',
+  add column if not exists current_release_tag text not null default '',
+  add column if not exists current_revision text not null default '',
+  add column if not exists latest_release_tag text not null default '',
+  add column if not exists latest_release_commit text not null default '',
+  add column if not exists release_repository text not null default '';
+comment on column public.system_version.current_distribution_id is
+  'Identidade da distribuição reportada pelo contêiner em execução; vazio em imagens legadas.';
+comment on column public.system_version.current_release_tag is
+  'Tag completa e imutável da release que construiu o contêiner em execução.';
+comment on column public.system_version.current_revision is
+  'Commit incorporado à imagem em execução, separado do checkout atual do host.';
+comment on column public.system_version.latest_release_tag is
+  'Tag completa da release própria selecionada pelo agente do host.';
+comment on column public.system_version.latest_release_commit is
+  'Commit resolvido a partir da tag exata da release selecionada.';
+comment on column public.system_version.release_repository is
+  'Repositório de origem da distribuição consultado pelo agente.';
+
+-- 0241: identidade estável de cada entrada em awaiting_human.
+alter table public.agent_cases
+  add column if not exists awaiting_human_at timestamptz;
+update public.agent_cases
+   set awaiting_human_at = coalesce(updated_at, opened_at, now())
+ where status = 'awaiting_human'
+   and awaiting_human_at is null;
+create or replace function public.fn_agent_cases_track_human_wait()
+returns trigger
+language plpgsql
+set search_path = public, pg_temp
+as $$
+begin
+  if new.status = 'awaiting_human' then
+    if tg_op = 'INSERT' or old.status is distinct from new.status then
+      new.awaiting_human_at := clock_timestamp();
+    else
+      new.awaiting_human_at := coalesce(old.awaiting_human_at, new.awaiting_human_at, now());
+    end if;
+  else
+    new.awaiting_human_at := null;
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.fn_agent_cases_track_human_wait() from public, anon, authenticated;
+alter table public.agent_cases
+  drop constraint if exists agent_cases_awaiting_human_timestamp;
+alter table public.agent_cases
+  add constraint agent_cases_awaiting_human_timestamp
+  check (status <> 'awaiting_human' or awaiting_human_at is not null);
+create index if not exists agent_cases_human_wait_idx
+  on public.agent_cases (organization_id, awaiting_human_at desc)
+  where status = 'awaiting_human';
+drop trigger if exists trg_agent_cases_track_human_wait on public.agent_cases;
+create trigger trg_agent_cases_track_human_wait
+  before insert or update on public.agent_cases
+  for each row execute function public.fn_agent_cases_track_human_wait();
+notify pgrst, 'reload schema';
+
+-- 0242: migra apenas o nome padrão legado da distribuição; preserva marcas próprias.
+with migrada as (
+  update public.platform_branding
+     set app_name = 'Striva Sales'
+   where id = 1
+     and seeded_from_env = true
+     and app_name = 'DeskcommCRM'
+     and nullif(btrim(logo_url), '') is null
+     and logo_path is null
+  returning id
+)
+insert into public.api_audit_log (
+  organization_id,
+  action,
+  resource_type,
+  metadata
+)
+select
+  null,
+  'platform_branding.product_rebrand_applied',
+  'platform_branding',
+  jsonb_build_object(
+    'previous_name', 'DeskcommCRM',
+    'current_name', 'Striva Sales',
+    'source', 'distribution_migration'
+  )
+from migrada;
+
+-- ---- VARREDURA anon: função nova nasce exposta em quem ATUALIZA (migration 0116) ----
+--
+-- ⚠️ ESTE BLOCO É, DE PROPÓSITO, O ÚLTIMO DO ARQUIVO. Apêndice novo entra ANTES
+
+-- dele — quem o empurrar para o meio desarma a cura para tudo que vier depois.
+-- Vigiado por `tests/unit/varredura-anon-e-o-ultimo-bloco.test.ts`.
+--
+-- A 0108 revogou anon numa LISTA de 8 funções, medida num banco instalado do
+-- ZERO. Quem ATUALIZA tem outro estado: o `ALTER DEFAULT PRIVILEGES ... GRANT
+-- ALL ON FUNCTIONS TO anon` do corpo deste arquivo grava uma entrada em
+-- `pg_default_acl` que fica no catálogo PARA SEMPRE, e a partir daí toda função
+-- criada em `public` nasce com EXECUTE para anon — inclusive as deste apêndice.
+--
+-- Medido numa VPS real (2026-08-07), comparando com o que um install fresco
+-- produz: 6 definer expostas a anon e 5 a authenticated, entre elas
+-- `fn_decrypt_oauth` — alcançável pela anon key, que vai para o browser.
+--
+-- Lista conserta o estoque e reabre no próximo `create function`. Esta varredura
+-- é auto-curativa e roda DEPOIS de tudo que cria função, então cura no mesmo run
+-- em que o defeito nasceria. Desfazer o ALTER DEFAULT PRIVILEGES não serve: ele
+-- vem do `pg_dump` do Supabase e é reescrito a cada re-aplicação.
+--
+-- As duas origens de EXECUTE (a mesma lição da 0108): grant DIRETO a anon, que
+-- `revoke from public` não remove; e grant a PUBLIC, do qual anon HERDA, que
+-- `revoke from anon` não remove. O privilégio EFETIVO de authenticated e
+-- service_role é medido ANTES e devolvido depois — tira anon sem tirar leitura.
+do $$
+declare
+  f record;
+  tinha_auth boolean;
+  tinha_service boolean;
+begin
+  if to_regrole('anon') is null then
+    return;
+  end if;
+
+  for f in
+    select p.oid, p.oid::regprocedure as assinatura
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       and p.prosecdef
+  loop
+    tinha_auth := to_regrole('authenticated') is not null
+                  and has_function_privilege('authenticated', f.oid, 'EXECUTE');
+    tinha_service := to_regrole('service_role') is not null
+                     and has_function_privilege('service_role', f.oid, 'EXECUTE');
+
+    execute format('revoke execute on function %s from public, anon', f.assinatura);
+
+    if tinha_auth then
+      execute format('grant execute on function %s to authenticated', f.assinatura);
+    end if;
+    if tinha_service then
+      execute format('grant execute on function %s to service_role', f.assinatura);
+    end if;
+  end loop;
+end $$;
+
+-- regra 2 (authenticated): as 5 que o update abriu e o install não abre. Aqui não
+-- cabe varredura — `authenticated` PRECISA de EXECUTE nos helpers de RLS e em
+-- `retrieve_top_k_chunks` (num install fresco ele tem). É julgamento por função,
+-- e o alvo de cada linha é o valor que um install fresco produz, medido.
+revoke execute on function public.fn_audit_log_row() from authenticated;
+revoke execute on function public.fn_decrypt_oauth(bytea) from authenticated;
+revoke execute on function public.fn_encrypt_oauth(text) from authenticated;
+revoke execute on function public.fn_lgpd_cascade_redact_contact(uuid, uuid, uuid) from authenticated;
+revoke execute on function public.fn_update_budget_consumption() from authenticated;
+
+grant execute on function public.fn_audit_log_row() to service_role;
+grant execute on function public.fn_decrypt_oauth(bytea) to service_role;
+grant execute on function public.fn_encrypt_oauth(text) to service_role;
+grant execute on function public.fn_lgpd_cascade_redact_contact(uuid, uuid, uuid) to service_role;
+grant execute on function public.fn_update_budget_consumption() to service_role;

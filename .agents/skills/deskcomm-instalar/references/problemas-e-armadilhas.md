@@ -118,10 +118,12 @@ exemplo. Para desligar: `SENTRY_DSN=off` no `.env` e `docker compose -f docker-c
 Instalações anteriores à próxima versão mostram um banner que afirma "por padrão os erros são
 enviados" — o padrão da pergunta é **não** enviar; o banner foi corrigido para dizer a escolha feita.
 
-**`--yes` instalou no canal `stable` em vez de uma versão.** O `.env` copiado do exemplo trouxe
-`APP_IMAGE=...:stable`. Confira `grep -E '^(APP|WORKER|SCHEDULER)_IMAGE=' .env`; para fixar uma
-versão, `bash hostgator-setup-kit/update.sh --to v1.17.0 --force` (a tag publicada mais recente
-aparece em github.com/welltonsoaress/DeskcommCRM/releases).
+**Instalação legada tem IDs ou hashes locais nas referências das imagens.** Esses valores não são
+tags de registro. A versão corrente compara o build executado com releases `striva-v*` do
+repositório próprio e não consulta ID local como URL remota. Confira as referências com
+`grep -E '^(APP|WORKER|SCHEDULER)_IMAGE=' .env`; para atualizar explicitamente, use uma tag própria,
+por exemplo `bash hostgator-setup-kit/update.sh --to striva-v1.0.0`. O script valida app, worker e
+scheduler antes de backup, banco ou reinício; se uma imagem faltar, corrija a publicação da release.
 
 **`update.sh` recusou com código 3.** Ele não conseguiu confirmar o que é mais novo (clone raso
 sem internet para o GitHub, ou a versão pedida é anterior à instalada). **Nada foi tocado.** Tente

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Atualiza o DeskcommCRM na VPS: código novo + banco + app — com BACKUP antes e
+# Atualiza o Striva Sales na VPS: código novo + banco + app — com BACKUP antes e
 # CHECAGEM DE SAÚDE depois. Um comando só, pensado pra quem não é técnico:
 #
 #   bash hostgator-setup-kit/update.sh
@@ -41,12 +41,31 @@ setup_update_agent_cron
 
 # ── 1. Tem atualização mesmo? ────────────────────────────────────────────────
 step "Procurando atualizações"
-git fetch --tags --quiet origin 2>/dev/null || c_ylw "⚠ não consegui falar com o GitHub — sigo com o código que já está aqui."
-[ -n "$TARGET_TAG" ] || TARGET_TAG="$(git tag -l 'v*' --sort=-v:refname | head -1)"
-[ -n "$TARGET_TAG" ] || die "Não encontrei nenhuma versão publicada para instalar."
-git rev-parse --verify --quiet "${TARGET_TAG}^{commit}" >/dev/null \
-  || die "Não conheço a versão $TARGET_TAG aqui. Confira o nome (ex.: v1.1.0) ou tente de novo quando o servidor conseguir falar com o GitHub."
-CURRENT_TAG="$(git describe --tags --exact-match HEAD 2>/dev/null || true)"
+if [ -z "$TARGET_TAG" ]; then
+  TARGET_TAG="$(tag_da_release_mais_recente)" || TARGET_TAG=""
+fi
+[ -n "$TARGET_TAG" ] || die "Não consegui consultar uma release publicada do Striva Sales. Confira a conexão com o GitHub e tente novamente."
+release_publicada "$TARGET_TAG" || refuse "A referência $TARGET_TAG não é uma release Striva estável publicada. Nenhum dado ou serviço foi alterado."
+VERSAO_ALVO="${TARGET_TAG#"$DISTRIBUTION_RELEASE_TAG_PREFIX"}"
+trio_publicado "$VERSAO_ALVO" || refuse "A release $VERSAO_ALVO ainda não tem as três imagens públicas. Nenhum dado ou serviço foi alterado. Tente novamente depois da publicação."
+LATEST_COMMIT="$(buscar_commit_da_release "$TARGET_TAG")" \
+  || refuse "Não consegui baixar a release exata $TARGET_TAG do repositório da distribuição. Nenhum dado ou serviço foi alterado."
+[ -n "$LATEST_COMMIT" ] \
+  || die "Não conheço a versão $TARGET_TAG aqui. Confira o nome (ex.: striva-v1.0.0) ou tente de novo quando o servidor conseguir falar com o GitHub."
+TARGET_REF="$(ref_local_da_release "$TARGET_TAG")"
+
+# A release instalada vem da etiqueta imutável da imagem em execução, não de
+# tags locais que podem ter vindo do repositório antigo ou estar contaminadas.
+RUNNING_CONTAINER="$(dc ps -q app 2>/dev/null | head -1)" || RUNNING_CONTAINER=""
+RUNNING_IMAGE_ID=""
+CURRENT_TAG=""
+if [ -n "$RUNNING_CONTAINER" ]; then
+  RUNNING_IMAGE_ID="$(docker inspect --format '{{.Image}}' "$RUNNING_CONTAINER" 2>/dev/null)" || RUNNING_IMAGE_ID=""
+  if [ -n "$RUNNING_IMAGE_ID" ]; then
+    CURRENT_TAG="$(docker image inspect "$RUNNING_IMAGE_ID" --format '{{ index .Config.Labels "org.opencontainers.image.ref.name" }}' 2>/dev/null)" || CURRENT_TAG=""
+    [ "$CURRENT_TAG" = "<no value>" ] && CURRENT_TAG=""
+  fi
+fi
 
 # O código estar em dia NÃO significa que o app está: quem roda é a imagem.
 # Uma atualização interrompida depois do checkout (queda de rede, falta de
@@ -57,16 +76,16 @@ CURRENT_TAG="$(git describe --tags --exact-match HEAD 2>/dev/null || true)"
 # (Veio da `main`; a versão por tag cai exatamente na mesma armadilha, porque a
 # comparação de tags também fica satisfeita com a imagem velha no lugar.)
 image_desatualizada() {
-  # O fallback vem de `IMG_APP` (_common.sh, sourceado no topo deste arquivo) e não de
-  # um literal: num fork com namespace próprio, o literal apontava para a
-  # imagem do UPSTREAM, e um `.env` sem APP_IMAGE comparava o digest local
-  # contra um registry que não é o dele.
-  local img="${APP_IMAGE:-${IMG_APP}:latest}" local_d remote_d
-  local_d="$(docker image inspect "$img" --format '{{if .RepoDigests}}{{index .RepoDigests 0}}{{end}}' 2>/dev/null | sed 's/.*@//')"
-  [ -z "$local_d" ] && return 0                 # nem baixada ainda → atualizar
-  remote_d="$(docker buildx imagetools inspect "$img" 2>/dev/null | awk '/^Digest:/{print $2; exit}')"
-  [ -z "$remote_d" ] && return 1                # sem como consultar → não forçar
-  [ "$local_d" != "$remote_d" ]
+  # Comparar a imagem que roda com a referência da release-alvo. Um ID local ou
+  # digest nunca vira endereço remoto; falha de consulta não significa "em dia".
+  local container running_id target_id
+  container="$(dc ps -q app 2>/dev/null | head -1)" || container=""
+  [ -n "$container" ] || return 0
+  running_id="$(docker inspect --format '{{.Image}}' "$container" 2>/dev/null)" || running_id=""
+  target_id="$(docker image inspect "${IMG_APP}:${VERSAO_ALVO}" --format '{{.Id}}' 2>/dev/null)" || target_id=""
+  [ -n "$target_id" ] || return 0
+  [ -n "$running_id" ] || return 0
+  [ "$running_id" != "$target_id" ]
 }
 
 MESMA_TAG=""
@@ -87,7 +106,7 @@ fi
 # Quando o alvo é a MESMA tag já instalada, a guarda não se aplica: não há para
 # onde voltar no tempo — só a imagem é que ficou para trás.
 if [ -z "$FORCE" ] && [ -z "$MESMA_TAG" ]; then
-  is_already_in_head "$TARGET_TAG" && CONTIDA=0 || CONTIDA=$?
+  is_already_in_head "$TARGET_REF" && CONTIDA=0 || CONTIDA=$?
   case "$CONTIDA" in
     0) refuse "A versão $TARGET_TAG é ANTERIOR à que já está instalada neste servidor.
      Instalar ela seria voltar no tempo e desligar coisas que você já tem.
@@ -103,6 +122,16 @@ if [ -z "$FORCE" ] && [ -z "$MESMA_TAG" ]; then
        bash hostgator-setup-kit/update.sh --to $TARGET_TAG --force" ;;
   esac
 fi
+
+# Faz pull e valida o trio antes do backup, checkout, banco ou troca de serviço.
+# Se uma imagem estiver ausente/privada, a instalação atual permanece intacta.
+step "Validando as três imagens da release"
+for img in "$IMG_APP" "$IMG_WORKER" "$IMG_SCHEDULER"; do
+  if ! docker pull "${img}:${VERSAO_ALVO}"; then
+    refuse "Não consegui baixar ${img}:${VERSAO_ALVO}. A release não foi aplicada; app, workers e banco continuam como estavam. Confira a publicação e tente novamente."
+  fi
+done
+c_grn "✓ as três imagens de ${VERSAO_ALVO} estão disponíveis no servidor."
 if [ -n "$MESMA_TAG" ]; then
   c_ylw "O código já está na $TARGET_TAG, mas o app está rodando uma imagem antiga. Vou atualizar a imagem."
 else
@@ -126,7 +155,7 @@ fi
 
 # ── 3. Código novo ───────────────────────────────────────────────────────────
 step "Baixando o código novo"
-if ! git checkout --quiet "$TARGET_TAG" 2>&1; then
+if ! git checkout --quiet "$TARGET_REF" 2>&1; then
   die "Não consegui trocar para a versão $TARGET_TAG (parece haver mudanças locais que divergem).
      Rode 'git status' pra ver, ou peça ajuda. NÃO mexi no banco — está tudo como estava."
 fi
@@ -226,11 +255,17 @@ step "Baixando a versão nova do app e reiniciando"
 # antigo grava só `APP_IMAGE`, e o worker fica seguindo um canal móvel.
 PIN_FALTANDO_ANTES="$(pin_incompleto .env)"
 
-VERSAO_ALVO="${TARGET_TAG#v}"
 export APP_IMAGE="${IMG_APP}:${VERSAO_ALVO}"
 export WORKER_IMAGE="${IMG_WORKER}:${VERSAO_ALVO}"
 export SCHEDULER_IMAGE="${IMG_SCHEDULER}:${VERSAO_ALVO}"
 gravar_imagens .env "$VERSAO_ALVO"
+
+# Conversão estreita do nome padrão legado. Marcas escolhidas pelo operador e
+# cores próprias ficam intactas; a linha persistida passa a refletir a nova
+# distribuição também no fallback de branding quando o banco estiver fora.
+if [ -n "$(migrar_nome_padrao_da_marca .env)" ]; then
+  c_dim "  (nome padrão da instalação migrado para Striva Sales)"
+fi
 
 # Os segredos da chamada de voz (spec 18), para quem instalou antes dela existir.
 # LACUNA apenas — chave presente, mesmo vazia, é decisão de quem opera. Isto NÃO
@@ -241,33 +276,13 @@ gravar_imagens .env "$VERSAO_ALVO"
 VOZ_CRIADA="$(completar_segredos_da_voz .env)" || VOZ_CRIADA=""
 [ -n "$VOZ_CRIADA" ] && c_ylw "  (preparei as credenciais da chamada de voz no .env — ela segue DESLIGADA)"
 
-# `dc pull` falha se alguma das três imagens ainda não existir no registro — o
-# que acontece numa instalação atualizando para a primeira versão publicada
-# depois desta mudança, ou se um run de publicação quebrou. Nesse caso o compose
-# ainda tem `build:` ao lado do `image:` do worker e do scheduler, então o
-# `up -d` os constrói localmente: pior que puxar, melhor que não atualizar.
-if ! dc pull; then
-  # A mensagem distingue os dois casos porque a consequência é oposta, e uma
-  # frase tranquilizadora sobre o caso errado é o pior desfecho possível: o
-  # `worker` e o `scheduler` têm `build:` ao lado do `image:` e o `up -d` os
-  # constrói; o `app` NÃO tem, então se for a imagem dele que falta, o `up -d`
-  # morre logo abaixo — e dizer "sigo assim mesmo" teria sido mentira.
-  if dc pull app >/dev/null 2>&1; then
-    c_ylw "⚠ Não consegui puxar todas as imagens da versão ${VERSAO_ALVO}."
-    c_ylw "  A do app veio; o que faltar é construído aqui (mais lento, mesmo resultado)."
-  else
-    c_ylw "⚠ Não consegui puxar a imagem do APP na versão ${VERSAO_ALVO}."
-    c_ylw "  Causas comuns: a versão ainda está publicando, ou o pacote está privado no GHCR."
-    c_ylw "  Vou tentar subir mesmo assim — se falhar, rode de novo em alguns minutos."
-  fi
-fi
 # A rede do proxy externo é declarada como EXTERNA no compose: se ela sumiu
 # (um `docker network prune`, ou o `down -v` que o próprio kit ensina como
 # caminho de recomeço), o `up -d` abaixo morre em "network X declared as
 # external, but could not be found" — e este script roda sozinho pelo agent.sh,
 # então ninguém está lendo a tela para decifrar isso. Mesma função do install.sh.
 garantir_rede_do_proxy
-dc up -d
+dc up -d --no-build
 
 # O Caddyfile entra no container por bind mount de UM ARQUIVO, e bind mount de
 # arquivo fica preso ao inode. O `git pull` não edita o arquivo: escreve outro e

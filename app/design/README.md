@@ -6,7 +6,7 @@
 > underscore). Se preferir o prefixo, renomeia e adicione um redirect
 > em `next.config.ts`.
 
-Painel navegável e isolado para iterar a direção visual do DeskcommCRM antes de
+Painel navegável e isolado para iterar a direção visual do Striva Sales antes de
 aplicar ao app real. Não toca em `app/layout.tsx` global; tem o seu próprio
 `layout.tsx` com `<VariantProvider>` e CSS escopado em `showcase.css`.
 
@@ -36,7 +36,7 @@ A rota é pública (sem auth) e tem `robots: noindex`.
 > tipográfica > decoração.
 
 ### Paletas (5)
-`Sage` · `Clay` · `Mist` · `Plum` · `Olive` — cada uma com 11 stops do accent,
+`Striva` · `Clay` · `Mist` · `Plum` · `Olive` — cada uma com 11 stops do accent,
 11 stops de neutro greige, 4 estados (success/warning/error/info), versões
 **light e dark definidas separadamente** (não invertidas).
 
@@ -67,7 +67,7 @@ Inter / Geist / Space Grotesk **proibidos** por saturação em training data.
 
 ## Decisões notáveis
 
-- **Default**: `Sage + Bricolage/Jakarta + Equilibrada + Light`. Sage projeta
+- **Default**: `Striva + Bricolage/Jakarta + Equilibrada + Light`. Striva projeta
   calma operacional sem cair em "saúde mental clichê"; Bricolage tem width axis
   útil para hierarquia em headers de inbox.
 - **Iconografia recomendada**: Phosphor (duotone). Justificativa na seção Iconografia.

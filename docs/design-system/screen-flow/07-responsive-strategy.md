@@ -141,7 +141,7 @@ QR code pra connect-whatsapp em mobile: tamanho fixo 280×280 e instrução "abr
 
 1. **Imagens em mensagens** sempre `max-width: 100%`, mantendo aspect ratio
 2. **Mídia preview** clicável → lightbox full-screen
-3. **Foco visível** sempre (`focus-visible:ring-2 ring-sage-500`)
+3. **Foco visível** sempre (`focus-visible:ring-2 ring-[var(--color-accent-500)]`)
 4. **Hover states** apenas com `@media (hover: hover)` (não em touch)
 5. **Atalhos de teclado** invisíveis em mobile (não confunde)
 

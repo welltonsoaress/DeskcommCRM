@@ -75,7 +75,7 @@ function corpo(yml: string, nome: string): string {
     .join("\n");
 }
 
-const IMAGENS = ["deskcommcrm", "deskcomm-worker", "deskcomm-scheduler"];
+const IMAGENS = ["striva-sales", "striva-worker", "striva-scheduler"];
 
 describe("o canal `stable` move em bloco", () => {
   it("o instrumento está vivo: enxerga os jobs de publish-image.yml", () => {
@@ -123,15 +123,15 @@ describe("o canal `stable` move em bloco", () => {
     expect(corpo(publish, "promover-stable")).toMatch(/imagetools create/);
   });
 
-  it("o canal só se move num push de tag `vX.Y.Z`", () => {
+  it("o canal só se move num push de tag `striva-vX.Y.Z`", () => {
     const cond = / {4}if:\s*(.+)/.exec(corpo(publish, "promover-stable"))?.[1] ?? "";
     // As três condições, e cada uma barra um caminho medido: sem `push`, um
     // dispatch numa release ANTIGA faria `stable` REGREDIR; sem `tag`, um
-    // dispatch numa branch moveria o canal; sem o `v`, uma tag de teste o move
+    // dispatch numa branch moveria o canal; sem o prefixo próprio, uma tag de teste o move
     // (o registro já tem uma `quebrada-teste`).
     expect(cond).toContain("github.event_name == 'push'");
     expect(cond).toContain("github.ref_type == 'tag'");
-    expect(cond).toContain("startsWith(github.ref_name, 'v')");
+    expect(cond).toContain("startsWith(github.ref_name, 'striva-v')");
   });
 
   it("a promoção declara o privilégio que ela usa, no menor escopo", () => {

@@ -20,6 +20,8 @@ interface SidebarContentProps {
   collapsed: boolean;
   showCollapseControl?: boolean;
   onNavigate?: () => void;
+  pendingCasesCount?: number;
+  pendingCasesUnknown?: boolean;
 }
 
 /**
@@ -34,6 +36,8 @@ export function SidebarContent({
   collapsed,
   showCollapseControl = true,
   onNavigate,
+  pendingCasesCount = 0,
+  pendingCasesUnknown = false,
 }: SidebarContentProps) {
   // A barra lateral aparece em TODA tela — traduzi-la aqui é o que faz a
   // escolha de idioma virar algo visível no primeiro clique.
@@ -197,9 +201,12 @@ export function SidebarContent({
         o PR: cada linha custa 32px (28px de altura + 4px de `space-y-1`), e
         trocar N destinos do menu por um único link de hub devolve (N-1)×32px.
       */}
-      <nav className="flex-1 space-y-2 overflow-y-auto p-2" aria-label={t("Navegação principal")}>
+      {/* Casos é acesso essencial. Reduzimos só o intervalo entre grupos;
+          a altura dos alvos de clique permanece igual. A dobra é vigiada no E2E. */}
+      <nav className="flex-1 space-y-1 overflow-y-auto p-2" aria-label={t("Navegação principal")}>
         {grupos.map(({ group, items }) => {
           const tituloId = `nav-grupo-${group.id}`;
+          const groupHasCases = items.some((item) => item.href === "/app/ai/cases");
           // Recolhido o sidebar inteiro (rail de 64px), o grupo sempre mostra
           // seus itens — não há onde desenhar cabeçalho nem seta para fechá-lo.
           const aberto = collapsed || !gruposFechados.has(group.id);
@@ -217,7 +224,21 @@ export function SidebarContent({
                     aria-expanded={aberto}
                     className="flex w-full items-center justify-between rounded-md px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
                   >
-                    {t(group.label)}
+                    <span className="flex min-w-0 items-center gap-2">
+                      {t(group.label)}
+                      {groupHasCases && pendingCasesCount > 0 && (
+                        <span
+                          className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-red-600 motion-reduce:animate-none"
+                          aria-label={t("Casos aguardando ação humana")}
+                        />
+                      )}
+                      {groupHasCases && pendingCasesUnknown && pendingCasesCount === 0 && (
+                        <span
+                          className="h-2 w-2 shrink-0 rounded-full bg-amber-500"
+                          aria-label={t("Não foi possível verificar os casos")}
+                        />
+                      )}
+                    </span>
                     <CaretDown
                       size={12}
                       weight="bold"
@@ -260,6 +281,28 @@ export function SidebarContent({
                             <ConnectionHealthDot
                               className={cn(collapsed ? "absolute top-1.5 right-1.5" : "ml-auto")}
                             />
+                          )}
+                          {item.href === "/app/ai/cases" && pendingCasesCount > 0 && (
+                            <span className={cn(
+                              "h-2 w-2 shrink-0 animate-pulse rounded-full bg-red-600 motion-reduce:animate-none",
+                              collapsed ? "absolute right-1.5 top-1.5" : "ml-auto",
+                            )}>
+                              <span className="sr-only">{t("Casos aguardando ação humana")}</span>
+                            </span>
+                          )}
+                          {item.href === "/app/ai/cases" && pendingCasesUnknown && pendingCasesCount === 0 && (
+                            <span
+                              title={t("Não foi possível verificar os casos")}
+                              className={cn(
+                                "h-2 w-2 shrink-0 rounded-full bg-amber-500",
+                                collapsed ? "absolute right-1.5 top-1.5" : "ml-auto",
+                              )}
+                            />
+                          )}
+                          {item.href === "/app/ai/cases" && pendingCasesCount > 0 && !collapsed && (
+                            <span className="ml-auto min-w-5 rounded-full bg-red-600 px-1.5 text-center text-[10px] leading-5 text-white">
+                              {pendingCasesCount > 99 ? "99+" : pendingCasesCount}
+                            </span>
                           )}
                         </Link>
                       </li>
@@ -335,7 +378,15 @@ export function SidebarContent({
   );
 }
 
-export function Sidebar({ collapsed }: { collapsed: boolean }) {
+export function Sidebar({
+  collapsed,
+  pendingCasesCount = 0,
+  pendingCasesUnknown = false,
+}: {
+  collapsed: boolean;
+  pendingCasesCount?: number;
+  pendingCasesUnknown?: boolean;
+}) {
   return (
     <aside
       className={cn(
@@ -362,7 +413,11 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
         collapsed ? "w-16" : "w-60",
       )}
     >
-      <SidebarContent collapsed={collapsed} />
+      <SidebarContent
+        collapsed={collapsed}
+        pendingCasesCount={pendingCasesCount}
+        pendingCasesUnknown={pendingCasesUnknown}
+      />
     </aside>
   );
 }

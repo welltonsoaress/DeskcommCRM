@@ -86,7 +86,7 @@ export function VitrineDaAgenda() {
       <Secao
         id="paleta"
         titulo="As oito trilhas de cor"
-        descricao="Oito matizes espalhados e nomeáveis, derivados por cálculo: cada par passa em contraste (mínimo 3:1) e nenhum encosta no verde da marca. O par mais próximo fica a 0,119 no claro e 0,116 no escuro — a paleta de referência para daltonismo faz 0,156 com sete cores. Cor nunca vem sozinha: a inicial acompanha sempre."
+        descricao="Oito matizes para distinguir responsáveis na agenda. Cor nunca vem sozinha: a inicial acompanha sempre. As cores de identificação são independentes da cor configurada para a marca."
       >
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {TRILHAS.map(({ trilha, nome }) => (

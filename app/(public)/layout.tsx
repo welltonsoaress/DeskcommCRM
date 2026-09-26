@@ -30,11 +30,8 @@ import { IdiomaProvider } from "@/lib/i18n/IdiomaProvider";
  * para que `tests/e2e/marca-logo.spec.ts` continue medindo "a fachada está sem
  * `<img>`" como "sem logo do revendedor".
  *
- * O NOME continua saindo de `branding()` dentro de cada página — não é descuido,
- * está medido em `tests/e2e/icone-da-marca.spec.ts:64-77`: aquela spec cruza duas
- * resoluções independentes (o título da aba, que lê o banco, contra o texto sob
- * o "Entrar", que lê o `.env`). Trocar o texto para este mesmo resolvedor
- * deixaria a spec verde medindo nada.
+ * Login e cadastro resolvem o nome pela mesma pilha. Um APP_NAME antigo no
+ * ambiente não pode sobrepor a identidade já atualizada no banco.
  */
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const marca = await marcaDaSaida(null);

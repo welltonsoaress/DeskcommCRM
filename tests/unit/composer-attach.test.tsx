@@ -87,4 +87,7 @@ describe("Composer + anexos", () => {
 });
 
 // A fixture exercita um atendente autorizado a consultar modelos de mensagem.
-vi.mock("@/hooks/auth/AuthProvider", () => ({ usePermission: () => true }));
+vi.mock("@/hooks/auth/AuthProvider", () => ({
+  useAuth: () => ({ activeOrg: { orgId: "org-test" } }),
+  usePermission: () => true,
+}));

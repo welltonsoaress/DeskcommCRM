@@ -52,10 +52,10 @@ Ordem definida pelo Rafael: **PRD → Regras de Negócio → Specs → Epics →
 ## Fase 3.5 — Design System + Screen Flow (extra) — **COMPLETA**
 
 - [x] Showcase navegável `/design` com 5 paletas + 4 tipografias + 3 densidades + componentes + motion
-- [x] Direção locked: **Sage + Atkinson Hyperlegible + Aerada + Phosphor**
+- [x] Direção visual original: **Sage + Atkinson Hyperlegible + Aerada + Phosphor** (substituída pelo Violeta Striva em 2026-09-26)
 - [x] Tokens materializados em `tailwind.config.ts` + `app/globals.css` + `app/layout.tsx`
 - [x] `<ThemeProvider>` com light/dark/system + persistência localStorage
-- [x] shadcn components reescritos pra Sage (button/card/input/textarea/badge)
+- [x] shadcn components reescritos para os tokens visuais do produto
 - [x] Documentação em `docs/design-system/` (11 arquivos, ~10.4k palavras)
 - [x] Screen flow em `docs/design-system/screen-flow/` (9 arquivos, ~13.8k palavras)
 - [x] 94 telas inventariadas + 5 jornadas + 8 clickflows + 9 state machines

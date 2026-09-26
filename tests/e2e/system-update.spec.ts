@@ -39,6 +39,7 @@ import * as path from "node:path";
 import { test, expect, type Page, type APIRequestContext } from "@playwright/test";
 
 import { generateTotp, msUntilNextTotpWindow } from "./utils/totp";
+import { DISTRIBUTION_ID, DISTRIBUTION_REPOSITORY, distributionTag } from "../../lib/system/distribution";
 
 const CREDS_PATH = path.join(process.cwd(), ".e2e-creds.json");
 const SECRET = process.env.INTERNAL_SECRET ?? "";
@@ -127,6 +128,7 @@ async function heartbeat(
     off_release?: boolean;
     compare_failed?: boolean;
     has_known_release?: boolean;
+    runtime_verified?: boolean;
   },
 ): Promise<HeartbeatResponse> {
   const res = await request.post("/api/v1/system/agent", {
@@ -135,6 +137,13 @@ async function heartbeat(
       kind: "heartbeat",
       current_version: opts.current_version ?? "1.0.0",
       current_sha: "abc1234",
+      current_distribution_id: opts.runtime_verified === false ? "" : DISTRIBUTION_ID,
+      current_release_tag: opts.runtime_verified === false || opts.off_release
+        ? "" : distributionTag(opts.current_version ?? "1.0.0"),
+      current_revision: "a".repeat(40),
+      release_repository: DISTRIBUTION_REPOSITORY,
+      latest_release_tag: opts.latest_version ? distributionTag(opts.latest_version) : "",
+      latest_release_commit: opts.latest_version ? "b".repeat(40) : "",
       off_release: opts.off_release ?? false,
       latest_version: opts.latest_version,
       compare_failed: opts.compare_failed ?? false,
@@ -271,6 +280,7 @@ test("o dono vê a versão nova na sidebar e atualiza pela tela", async ({ page,
   expect(atencao!.y).toBeLessThan(botao!.y);
 
   await page.getByRole("button", { name: /atualizar agora/i }).click();
+  await page.getByRole("button", { name: "Confirmar atualização", exact: true }).click();
   await expect(page.getByRole("heading", { name: /atualizando para a versão 1\.1\.0/i })).toBeVisible();
   await expect(page.getByText(/Guardando uma cópia de segurança/)).toBeVisible();
   await page.screenshot({ path: ".superpowers/evidence/task9-2-atualizando.png" });
@@ -309,6 +319,7 @@ test("quando a atualização falha, a tela nomeia a versão certa, mostra o log 
   await loginWithTotp(page, creds.users.dono!.email, creds.dono_totp!.secret);
   await page.goto("/app/settings/atualizacao");
   await page.getByRole("button", { name: /atualizar agora/i }).click();
+  await page.getByRole("button", { name: "Confirmar atualização", exact: true }).click();
   await expect(page.getByRole("heading", { name: /atualizando para a versão 1\.1\.0/i })).toBeVisible();
 
   // ── Falha COM rollback ─────────────────────────────────────────────────────
@@ -323,7 +334,7 @@ test("quando a atualização falha, a tela nomeia a versão certa, mostra o log 
   // O host reporta o `git describe` DEPOIS do checkout: para ele, a versão
   // instalada é a 1.1.0 — a que acabou de quebrar. É esta mentira que a tela
   // repetia ("Voltei para a versão anterior (1.1.0)") e que o run desfaz.
-  await heartbeat(request, { current_version: "1.1.0", latest_version: "1.1.0" });
+  await heartbeat(request, { current_version: "1.1.0", latest_version: "1.1.0", runtime_verified: false });
   await page.reload();
 
   await expect(
@@ -351,15 +362,22 @@ test("quando a atualização falha, a tela nomeia a versão certa, mostra o log 
   // E o comando leva de volta para a versão que FUNCIONAVA — reinstalar a 1.1.0,
   // que acabou de quebrar, não é saída nenhuma se o problema for a release.
   await expect(
-    page.getByText("bash hostgator-setup-kit/update.sh --to v1.0.0 --force"),
+    page.getByText("bash hostgator-setup-kit/update.sh --to striva-v1.0.0 --force"),
   ).toBeVisible();
   await page.screenshot({ path: ".superpowers/evidence/final-1-falha-com-rollback.png" });
+
+  // A mesma versão, instalada manualmente com identidade do runtime, supera
+  // a inferência antiga do checkout sem apagar o registro da falha.
+  await heartbeat(request, { current_version: "1.1.0", latest_version: "1.1.0" });
+  const manual = await page.request.get("/api/v1/system/version");
+  expect((await manual.json()).data.current_version).toBe("1.1.0");
 
   // ── Falha SEM rollback: a tela não pode prometer que voltou ────────────────
   resetEstado();
   await heartbeat(request, { current_version: "1.1.0", latest_version: "1.2.0" });
   await page.reload();
   await page.getByRole("button", { name: /atualizar agora/i }).click();
+  await page.getByRole("button", { name: "Confirmar atualização", exact: true }).click();
   await expect(page.getByRole("heading", { name: /atualizando para a versão 1\.2\.0/i })).toBeVisible();
 
   const segundo = await heartbeat(request, { current_version: "1.1.0", latest_version: "1.2.0" });
@@ -375,7 +393,7 @@ test("quando a atualização falha, a tela nomeia a versão certa, mostra o log 
   await expect(page.getByText(/não consegui/i)).toBeVisible();
   await expect(page.getByText(/Voltei o sistema para a versão/)).toHaveCount(0);
   await expect(
-    page.getByText("bash hostgator-setup-kit/update.sh --to v1.1.0 --force"),
+    page.getByText("bash hostgator-setup-kit/update.sh --to striva-v1.1.0 --force"),
   ).toBeVisible();
   await page.screenshot({ path: ".superpowers/evidence/final-2-falha-sem-rollback.png" });
 
@@ -389,6 +407,7 @@ test("quando a atualização falha, a tela nomeia a versão certa, mostra o log 
   await heartbeat(request, { current_version: "1.1.0", latest_version: "1.2.0" });
   await page.reload();
   await page.getByRole("button", { name: /atualizar agora/i }).click();
+  await page.getByRole("button", { name: "Confirmar atualização", exact: true }).click();
   // Espera a tela confirmar o pedido antes de bater o heartbeat: sem isso, o
   // agente simulado corre com o POST do clique e não acha run nenhum.
   await expect(page.getByRole("heading", { name: /atualizando para a versão 1\.2\.0/i })).toBeVisible();
@@ -405,7 +424,7 @@ test("quando a atualização falha, a tela nomeia a versão certa, mostra o log 
     page.getByRole("heading", { name: /a atualização para a versão 1\.2\.0 não deu certo/i }),
   ).toBeVisible();
   await expect(
-    page.getByText("bash hostgator-setup-kit/update.sh --to v1.1.0 --force"),
+    page.getByText("bash hostgator-setup-kit/update.sh --to striva-v1.1.0 --force"),
   ).toBeVisible();
   await page.getByText(/Detalhes técnicos/).click();
   await expect(page.getByText(/é ANTERIOR à que já está instalada/)).toBeVisible();

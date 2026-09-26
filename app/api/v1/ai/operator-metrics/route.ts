@@ -64,21 +64,23 @@ export async function GET(): Promise<Response> {
   }
 
   try {
-    const [turnos, agiu, comPromessa, assumidas, semDono, semFerramenta] = await Promise.all([
+    const [turnos, agiu, comPromessa, assumidas, semDono, semFerramenta, semConfirmacao] = await Promise.all([
       contar((q) => q),
-      // Pelo menos uma ferramenta chamada. O primeiro elemento existir é o teste
-      // mais barato de "array não vazio" que o PostgREST oferece.
-      contar((q) => q.not("payload->ferramentas_chamadas->>0", "is", null)),
+      // Só escritas com retorno confirmado. Uma chamada recusada não é ação.
+      contar((q) => q.not("payload->ferramentas_executadas->>0", "is", null)),
       contar((q) => q.not("payload->>promessas_declaradas", "eq", "0")),
       contar((q) => q.not("payload->>promessa_assumida_por", "is", null)),
       contar((q) => q.not("payload->>promessa_sem_dono_porque", "is", null)),
       contar((q) => q.eq("payload->>promessa_sem_dono_porque", "operador_sem_ferramentas")),
+      // Eventos antigos não guardavam o resultado. Não os reclassificamos.
+      contar((q) => q.is("payload->ferramentas_executadas", null)),
     ]);
 
     return ok({
       dias: DIAS,
       turnos,
       agiu,
+      semConfirmacao,
       promessas: { declaradas: comPromessa, assumidas, semDono },
       // "Quis agir e não pôde": o papel rodou, havia promessa, e ele não tinha
       // nenhuma capacidade marcada. A ação que cabe ao dono é na tela, não no

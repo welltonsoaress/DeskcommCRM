@@ -33,7 +33,7 @@
 set -euo pipefail
 
 API="https://api.supabase.com/v1"
-PROJECT_NAME="${1:-DeskcommCRM}"
+PROJECT_NAME="${1:-Striva Sales}"
 REGION="${2:-${SUPABASE_REGION:-sa-east-1}}"
 
 c_red() { printf '\033[31m%s\033[0m\n' "$*" >&2; }
@@ -98,13 +98,13 @@ moldura() {
   printf '\033[36m╰%s╯\033[0m\n' "$(printf '─%.0s' $(seq 1 $((larg + 2))))" >&2
 }
 
-moldura "DeskcommCRM · criando seu banco no Supabase"
+moldura "Striva Sales · criando seu banco no Supabase"
 
 if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then
   c_red "✖ Falta o token de acesso do Supabase."
   printf '\n' >&2
   c_dim "  1. Abra https://supabase.com/dashboard/account/tokens"
-  c_dim "  2. Generate new token, dê um nome (ex.: deskcommcrm) e copie"
+  c_dim "  2. Generate new token, dê um nome (ex.: striva-sales) e copie"
   c_dim "  3. Rode:  export SUPABASE_ACCESS_TOKEN=sbp_...  e tente de novo"
   printf '\n' >&2
   exit 1

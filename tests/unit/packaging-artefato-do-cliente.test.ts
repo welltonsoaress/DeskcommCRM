@@ -231,7 +231,7 @@ describe("packaging — o artefato que o cliente instala", () => {
 
   it("o workflow publica as três imagens e injeta APP_VERSION", () => {
     const wf = fs.readFileSync(path.join(RAIZ, ".github/workflows/publish-image.yml"), "utf8");
-    for (const imagem of ["deskcommcrm", "deskcomm-worker", "deskcomm-scheduler"]) {
+    for (const imagem of ["striva-sales", "striva-worker", "striva-scheduler"]) {
       expect(wf, `publish-image.yml não publica '${imagem}'`).toContain(`name: ${imagem}`);
     }
     expect(wf, "publish-image.yml não passa APP_VERSION como build-arg").toContain(
@@ -273,7 +273,7 @@ describe("packaging — o artefato que o cliente instala", () => {
     // E o gatilho que precisa existir continua existindo — sem esta linha o
     // teste passaria num workflow que não publica coisa nenhuma.
     expect(semComentarios, "publish-image.yml deixou de reagir a push de tag").toMatch(
-      /tags:\s*\["?v\*/,
+      /tags:\s*\["?striva-v\*/,
     );
   });
 });

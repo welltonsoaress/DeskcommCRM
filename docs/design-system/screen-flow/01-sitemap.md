@@ -8,7 +8,7 @@ date: 2026-04-28
 
 # 01 — Sitemap
 
-> Árvore canônica de rotas do DeskcommCRM. Toda tela construída deve aparecer aqui. Persona, auth e prioridade por rota; layouts pais explícitos. Convenção Next.js 14 App Router.
+> Árvore canônica de rotas do Striva Sales. Toda tela construída deve aparecer aqui. Persona, auth e prioridade por rota; layouts pais explícitos. Convenção Next.js App Router.
 
 ## Convenção de leitura
 
@@ -163,7 +163,7 @@ Layout pai: `/app` (sidebar global, header com vocabulary do pipeline atual, bel
 | `/app/settings/api-tokens` | P3 (admin) | autenticada | `/app/settings` | P1 | não |
 | `/app/settings/billing` | P3 (admin) | autenticada | `/app/settings` | P2 (Fase 2) | não |
 
-## 4. Super-admin de plataforma (`/admin`, subdomínio `admin.deskcomm.com`)
+## 4. Super-admin de plataforma (`/admin`, no subdomínio administrativo da instalação)
 
 Layout pai: `/admin` — sidebar dedicada, header com seletor "todos os tenants" + busca, bell cross-tenant, badge "Modo Plataforma".
 

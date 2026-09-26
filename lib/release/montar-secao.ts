@@ -11,6 +11,7 @@
  * `tests/unit/branding.test.ts`, então a URL de comparação entra por parâmetro.
  */
 import type { Fragmento, Secao } from "./fragmento";
+import { DISTRIBUTION_TAG_PREFIX } from "../system/distribution";
 
 /** Exatamente o que `ATTENTION_HEADING` casa, com o U+26A0 que ela espera. */
 const HEADING_ATENCAO = "### ⚠️ Requer atenção";
@@ -116,14 +117,22 @@ export function aplicarNoChangelog(
   // sequências especiais no argumento de substituição, e o texto do fragmento
   // é prosa escrita à mão que neste repo rotineiramente carrega shell e regex.
   let saida = raw.replace(ANCORA, (ancora) => `${ancora}\n\n${secao.texto}`);
+  const primeiraRelease = anterior === "0.0.0";
+  if (primeiraRelease) {
+    // 0.0.0 é só a base técnica que permite ao corte calcular o major inicial;
+    // ela nunca foi publicada e não deve aparecer no histórico do produto.
+    saida = saida.replace(/^##\s+\[0\.0\.0\][^\n]*\n?/m, "");
+  }
 
-  const refNova = `[${secao.versao}]: ${compararUrl(`v${anterior}`, `v${secao.versao}`)}`;
-  const refNaoLancado = `[Não lançado]: ${compararUrl(`v${secao.versao}`, "HEAD")}`;
+  const refNova = primeiraRelease
+    ? ""
+    : `[${secao.versao}]: ${compararUrl(`${DISTRIBUTION_TAG_PREFIX}${anterior}`, `${DISTRIBUTION_TAG_PREFIX}${secao.versao}`)}`;
+  const refNaoLancado = `[Não lançado]: ${compararUrl(`${DISTRIBUTION_TAG_PREFIX}${secao.versao}`, "HEAD")}`;
 
   if (/^\[Não lançado\]:\s+\S+$/m.test(saida)) {
-    saida = saida.replace(/^\[Não lançado\]:\s+\S+$/m, () => `${refNaoLancado}\n${refNova}`);
+    saida = saida.replace(/^\[Não lançado\]:\s+\S+$/m, () => `${refNaoLancado}${refNova ? `\n${refNova}` : ""}`);
   } else {
-    saida = `${saida.trimEnd()}\n\n${refNaoLancado}\n${refNova}\n`;
+    saida = `${saida.trimEnd()}\n\n${refNaoLancado}${refNova ? `\n${refNova}` : ""}\n`;
   }
 
   return saida.endsWith("\n") ? saida : `${saida}\n`;

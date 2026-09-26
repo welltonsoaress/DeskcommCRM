@@ -17,24 +17,29 @@ services:
       # não veio de release nenhuma.
       args:
         APP_VERSION: ${APP_VERSION:-local}
-    image: ${APP_IMAGE:-deskcomm-app:local}
+        APP_REVISION: ${APP_REVISION:-unknown}
+        APP_RELEASE_TAG: ${APP_RELEASE_TAG:-}
+        APP_DISTRIBUTION_ID: striva-sales
+    image: ${APP_IMAGE:-striva-sales:local}
     pull_policy: never
 
-  # O worker e o scheduler já têm `build:` no compose de produção (é o escape
-  # que mantém a mudança aditiva). O que este override acrescenta é o
-  # `pull_policy: never`: sem ele, um `up -d` iria ao registry e substituiria a
-  # imagem local em silêncio — o mesmo modo de falha que o runbook descreve
-  # para o app, e que já mordeu uma vez.
+  # Builds locais são explícitos e ficam neste override, fora do compose de VPS.
   worker:
     build:
       args:
         APP_VERSION: ${APP_VERSION:-local}
-    image: ${WORKER_IMAGE:-deskcomm-worker:local}
+        APP_REVISION: ${APP_REVISION:-unknown}
+        APP_RELEASE_TAG: ${APP_RELEASE_TAG:-}
+        APP_DISTRIBUTION_ID: striva-sales
+    image: ${WORKER_IMAGE:-striva-worker:local}
     pull_policy: never
 
   scheduler:
     build:
       args:
         APP_VERSION: ${APP_VERSION:-local}
-    image: ${SCHEDULER_IMAGE:-deskcomm-scheduler:local}
+        APP_REVISION: ${APP_REVISION:-unknown}
+        APP_RELEASE_TAG: ${APP_RELEASE_TAG:-}
+        APP_DISTRIBUTION_ID: striva-sales
+    image: ${SCHEDULER_IMAGE:-striva-scheduler:local}
     pull_policy: never

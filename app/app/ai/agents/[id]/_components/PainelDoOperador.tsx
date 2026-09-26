@@ -79,8 +79,13 @@ function ComoOPapelEstaIndo() {
       </h4>
       <p className="text-xs text-muted-foreground" data-testid="operador-metrica-acao">
         {t("Organizou o sistema em")} <span className="font-medium text-foreground">{agiu}</span>{" "}
-        {t("de")} {turnos} {t("conversas.")}
+        {t("de")} {turnos - (m.data.semConfirmacao ?? 0)} {t("conversas.")}
       </p>
+      {(m.data.semConfirmacao ?? 0) > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {m.data.semConfirmacao} {t("turnos antigos não registraram confirmação de execução e ficaram fora dessa contagem.")}
+        </p>
+      )}
       <p className="text-xs text-muted-foreground" data-testid="operador-metrica-promessas">
         {t("De")} {promessas.declaradas} {t("promessas feitas ao cliente,")}{" "}
         <span className="font-medium text-foreground">{promessas.assumidas}</span>{" "}
