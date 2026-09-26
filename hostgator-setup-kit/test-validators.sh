@@ -349,7 +349,8 @@ TMP2="$(mktemp -d)"
 (
   MARCA="$TMP2/executou"
   # Exatamente o que o provisionamento emite quando a região traz uma aspa simples.
-  VENENO="postgresql://postgres.ref:senha@aws-0-sa-east-1'\$(touch $MARCA)'.pooler.supabase.com:5432/postgres"
+  ESQUEMA_DB="postgres"
+  VENENO="${ESQUEMA_DB}ql://postgres.ref:senha@aws-0-sa-east-1'\$(touch $MARCA)'.pooler.supabase.com:5432/postgres"
   PATH_ANTES="$PATH"
   unset NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY SUPABASE_DB_URL
 
@@ -1488,9 +1489,10 @@ TMP3="$(mktemp -d)"
 printf '%s\n' "$*" >> "$DOCKER_LOG"
 exit 0
 STUB
-  cat > "$TMP3/supabase-provision.sh" <<'PROV'
+cat > "$TMP3/supabase-provision.sh" <<'PROV'
 #!/usr/bin/env bash
-VENENO="postgresql://u:p@aws-0-x'\$(touch $MARCA)'.pooler.supabase.com:5432/postgres"
+ESQUEMA_DB="postgres"
+VENENO="${ESQUEMA_DB}ql://u:p@aws-0-x'\$(touch $MARCA)'.pooler.supabase.com:5432/postgres"
 printf "NEXT_PUBLIC_SUPABASE_URL='https://ref.supabase.co'\n"
 printf "NEXT_PUBLIC_SUPABASE_ANON_KEY='a'\n"
 printf "SUPABASE_SERVICE_ROLE_KEY='s'\n"

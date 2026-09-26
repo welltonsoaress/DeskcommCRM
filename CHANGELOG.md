@@ -9,4 +9,4 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Não lançado]
 
-## [0.0.0] — Base técnica da distribuição Striva Sales
+<!-- release-base: 0.0.0 -->

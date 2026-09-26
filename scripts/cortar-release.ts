@@ -21,6 +21,7 @@ import path from "node:path";
 import { calcularBump, type Fragmento, parseFragmento, proximaVersao } from "../lib/release/fragmento";
 import { aplicarNoChangelog, montarSecao } from "../lib/release/montar-secao";
 import { DISTRIBUTION_REPOSITORY } from "../lib/system/distribution";
+import { versaoBase } from "../lib/release/versao-base";
 
 const RAIZ = path.resolve(__dirname, "..");
 const DIR_FRAGMENTOS = path.join(RAIZ, ".changes");
@@ -52,19 +53,6 @@ function lerFragmentos(dir: string): Fragmento[] {
     throw new Error(`fragmento(s) inválido(s):\n${problemas.join("\n")}`);
   }
   return lidos;
-}
-
-/**
- * A base é a seção mais nova do CHANGELOG, não a maior tag — o repositório
- * carrega `v1.1.1-jmpo.1` e `jmpo/v1.4.0`, que existem justamente para não
- * colidir com a numeração daqui.
- */
-function versaoBase(changelog: string): string {
-  for (const linha of changelog.split("\n")) {
-    const m = /^##\s+\[(\d+\.\d+\.\d+)\]/.exec(linha);
-    if (m?.[1]) return m[1];
-  }
-  throw new Error("CHANGELOG.md sem nenhuma seção `## [X.Y.Z]`");
 }
 
 /** Só para conferência: um aviso, nunca uma recusa — o CI clona raso e não vê tag. */
