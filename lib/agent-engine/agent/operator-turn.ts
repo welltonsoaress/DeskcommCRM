@@ -557,7 +557,9 @@ export function createOperatorTurnHandler(deps: InboundTurnDeps) {
         promessasDeclaradas: promessas.length,
         dono: await apurarComRetorno(pool, tenantId, leadId, promessas.length, {
           ferramentasChamadas: ferramentasExecutadas,
-          operadorRodou: saida !== null,
+          // O handler foi executado mesmo sem chamar o modelo. Se nenhuma
+          // capacidade chegou à ponte, a saída acionável é configurar ferramentas.
+          operadorRodou: true,
           operadorTemFerramentas: (mcp?.toolIds.length ?? 0) > 0,
         }),
         ferramentasChamadas,
